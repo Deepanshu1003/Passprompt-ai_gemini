@@ -22,13 +22,26 @@ export interface ExtractedQuestion {
 }
 
 export function isQuotaOrRateLimitError(err: any): boolean {
-  const errMsg = String(err?.message || err || '');
+  if (!err) return false;
+  const errMsg = String(err?.message || '');
+  const errString = String(err);
+  let detailString = '';
+  try {
+    detailString = JSON.stringify(err);
+  } catch (e) {}
+
+  const combined = (errMsg + ' ' + errString + ' ' + detailString).toLowerCase();
+  
   return (
-    errMsg.includes('429') || 
-    errMsg.includes('RESOURCE_EXHAUSTED') || 
-    errMsg.includes('Quota exceeded') ||
-    errMsg.includes('quota') ||
-    errMsg.includes('rate limit')
+    combined.includes('429') || 
+    combined.includes('resource_exhausted') || 
+    combined.includes('quota exceeded') ||
+    combined.includes('quota') ||
+    combined.includes('rate limit') ||
+    err?.status === 429 ||
+    err?.code === 429 ||
+    err?.error?.code === 429 ||
+    err?.error?.status === 'RESOURCE_EXHAUSTED'
   );
 }
 

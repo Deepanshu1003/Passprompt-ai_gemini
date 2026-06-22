@@ -13,32 +13,104 @@ import {
   setActiveGeminiModel
 } from './offlineCache';
 
-// The PromptPass Logo: Fusion of Brain (Mind/AI) and Book (Knowledge)
+// The PromptPass Logo: Fusion of Brain (Mind/AI) and Book (Knowledge) with cyber-futuristic styling
 export const AppLogo = () => (
   <div className="flex items-center">
-    <div className="relative flex items-center">
+    <div className="relative flex items-center group">
+      {/* Background radial highlight glow */}
+      <div className="absolute -inset-2 bg-gradient-to-r from-sky-500/30 via-indigo-500/20 to-emerald-500/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+      
       <svg
-        width="38"
-        height="38"
-        viewBox="0 0 24 24"
+        width="42"
+        height="42"
+        viewBox="0 0 48 48"
         fill="none"
-        stroke="#38bdf8"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="shrink-0"
+        xmlns="http://www.w3.org/2000/svg"
+        className="shrink-0 relative transition-transform duration-700 ease-out group-hover:scale-105"
       >
-        {/* Brain Hemisphere Silhouette */}
-        <path d="M12 5a5 5 0 0 0-5 5v3a5 5 0 0 0 10 0v-3a5 5 0 0 0-5-5Z" />
-        {/* Book Spine Center line */}
-        <path d="M12 7v11" stroke="#fff" strokeWidth="1.5" />
-        {/* Brain pages inside lines */}
-        <path d="M9 10h6M9 13h6M9 16h6" stroke="#fff" strokeWidth="1" opacity="0.7" />
-        {/* AI Apex Neural Node */}
-        <circle cx="12" cy="4" r="1.2" fill="#38bdf8" stroke="none" />
+        <defs>
+          <linearGradient id="logoOuterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#38bdf8" /> {/* Sky 400 */}
+            <stop offset="50%" stopColor="#6366f1" /> {/* Indigo 500 */}
+            <stop offset="100%" stopColor="#10b981" /> {/* Emerald 500 */}
+          </linearGradient>
+          <linearGradient id="bookWhiteGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#e2e8f0" stopOpacity="0.95" />
+          </linearGradient>
+          <radialGradient id="auraGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* Ambient halo background circle */}
+        <circle cx="24" cy="24" r="20" fill="url(#auraGlow)" />
+
+        {/* Outer Orbital Frame - Hexagonal Shield representing passing certifications */}
+        <path
+          d="M24 4L41.32 14V34L24 44L6.68 34V14L24 4Z"
+          stroke="url(#logoOuterGrad)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="transition-all duration-500 group-hover:stroke-indigo-400"
+        />
+
+        {/* Floating orbital particles / learning checkpoints */}
+        <circle cx="24" cy="4" r="2" fill="#38bdf8" className="animate-pulse" />
+        <circle cx="41.32" cy="14" r="1.5" fill="#6366f1" />
+        <circle cx="41.32" cy="34" r="1.5" fill="#10b981" />
+        <circle cx="24" cy="44" r="2" fill="#38bdf8" className="animate-pulse" />
+        <circle cx="6.68" cy="34" r="1.5" fill="#10b981" />
+        <circle cx="6.68" cy="14" r="1.5" fill="#6366f1" />
+
+        {/* Symmetrical Book Pages forming the base platform of structured knowledge */}
+        {/* Left page block */}
+        <path
+          d="M24 31.5C19.5 31.5 13.5 28 11.5 27V15.5C13.5 16.5 19.5 20 24 20"
+          stroke="url(#bookWhiteGrad)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Right page block */}
+        <path
+          d="M24 31.5C28.5 31.5 34.5 28 36.5 27V15.5C34.5 16.5 28.5 20 24 20"
+          stroke="url(#bookWhiteGrad)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Glowing Book Spine */}
+        <path d="M24 19.5V33.5" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" />
+
+        {/* Intricate Brain Hemisphere Network / AI logic node grid hovering above */}
+        {/* Synaptic connector paths */}
+        <path
+          d="M24 9.5L16.5 13M24 9.5L31.5 13M16.5 13L24 16.5M31.5 13L24 16.5M16.5 13V15.5M31.5 13V15.5"
+          stroke="#38bdf8"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.8"
+        />
+        
+        {/* Individual Intelligence nodes */}
+        {/* Apex Core Node */}
+        <circle cx="24" cy="9.5" r="3" fill="#ffffff" stroke="#6366f1" strokeWidth="1.5" />
+        <circle cx="24" cy="9.5" r="1" fill="#38bdf8" />
+        
+        {/* Left Hemisphere logic node */}
+        <circle cx="16.5" cy="13" r="2" fill="#38bdf8" />
+        
+        {/* Right Hemisphere reasoning node */}
+        <circle cx="31.5" cy="13" r="2" fill="#10b981" />
       </svg>
-      <span className="text-xl font-black text-sky-400 -ml-0.5 tracking-tighter font-sans select-none">
-        .ai
+
+      {/* Cyberpunk styled little .ai badge representing state of the art models */}
+      <span className="ml-1.5 px-1.5 py-0.5 rounded bg-sky-500/10 border border-sky-500/30 text-[10px] font-black font-mono tracking-wider text-sky-400 select-none uppercase leading-none group-hover:bg-sky-500/20 transition-all">
+        .AI
       </span>
     </div>
   </div>
