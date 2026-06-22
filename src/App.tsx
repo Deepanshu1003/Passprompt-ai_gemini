@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import PracticeSession from './components/PracticeSession';
 import { ExamPlan } from './types';
-import { BookOpen, Trash2, ArrowUpRight, FolderHeart, PlusCircle, Sparkles } from 'lucide-react';
+import { BookOpen, Trash2, ArrowUpRight, FolderHeart, PlusCircle, Sparkles, WifiOff } from 'lucide-react';
+import { cachePlans, getCachedPlans } from './offlineCache';
 
 // The PromptPass Logo: Fusion of Brain (Mind/AI) and Book (Knowledge)
 export const AppLogo = () => (
@@ -39,15 +40,24 @@ export default function App() {
   const [plans, setPlans] = useState<ExamPlan[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [usingCache, setUsingCache] = useState(false);
 
   const fetchPlans = async () => {
     try {
       const res = await fetch('/api/plans');
       if (res.ok) {
-        setPlans(await res.json());
+        const list = await res.json();
+        setPlans(list);
+        cachePlans(list);
+        setUsingCache(false);
+      } else {
+        throw new Error('Server returned error response');
       }
     } catch (err) {
-      console.error('Failed to load study plans:', err);
+      console.warn('Failed to load study plans, loading from offline cache:', err);
+      const cached = getCachedPlans();
+      setPlans(cached);
+      setUsingCache(true);
     }
   };
 
@@ -58,6 +68,11 @@ export default function App() {
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setUploadError(null);
+
+    if (usingCache) {
+      setUploadError('Uploading or creating new study rooms is not supported while working offline.');
+      return;
+    }
 
     const formData = new FormData(e.currentTarget);
     const planTitle = formData.get('plan_title') as string;
@@ -102,6 +117,12 @@ export default function App() {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    
+    if (usingCache) {
+      alert('Deleting study rooms is not supported while working offline.');
+      return;
+    }
+
     if (!window.confirm('This will permanently delete this certification study workspace. Proceed?')) {
       return;
     }
@@ -169,6 +190,18 @@ export default function App() {
               {plans.length} workspaces
             </span>
           </div>
+
+          {usingCache && (
+            <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex items-start gap-3 text-amber-805">
+              <WifiOff className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-xs sm:text-sm text-amber-900">
+                <p className="font-bold">Offline Review Mode Enabled</p>
+                <p className="text-slate-600 font-medium mt-0.5 leading-relaxed">
+                  You are viewing your locally cached study rooms. You can fully review existing question patterns, practice with flashcards, and browse correct answer keys. Uploading new documents or utilizing real-time AI tutor interactions requires internet access.
+                </p>
+              </div>
+            </div>
+          )}
 
           {plans.length === 0 ? (
             <div className="bg-white p-10 sm:p-16 rounded-2xl border-2 border-dashed border-slate-200/80 text-center text-slate-500 flex flex-col items-center justify-center gap-3">

@@ -16,10 +16,17 @@ import {
   Sparkles,
   HelpCircle,
   TrendingUp,
-  ListFilter
+  ListFilter,
+  WifiOff
 } from 'lucide-react';
 import { ExamPlan, Question, ProgressItem, ChatMessage } from '../types';
 import { AppLogo } from '../App';
+import { 
+  cacheQuestions, 
+  getCachedQuestions, 
+  cacheProgress, 
+  getCachedProgress 
+} from '../offlineCache';
 
 const MarkdownComponents = {
   h1: ({ ...props }: any) => (
@@ -157,6 +164,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
   const [questions, setQuestions] = useState<Question[]>([]);
   const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [offlineActive, setOfflineActive] = useState(false);
 
   // Tab State: practice, flashcard, dashboard
   const [activeTab, setActiveTab] = useState<'practice' | 'flashcard' | 'dashboard'>('practice');
@@ -190,9 +198,18 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
   const fetchProgress = useCallback(async () => {
     try {
       const res = await fetch(`/api/plans/${planId}/progress`);
-      setProgress(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setProgress(data);
+        cacheProgress(planId, data);
+      } else {
+        throw new Error('Progress fetch failed');
+      }
     } catch (err) {
-      console.error(err);
+      console.warn('[OFFLINE] Fetch progress error, reading from local storage cache:', err);
+      const cached = getCachedProgress(planId);
+      setProgress(cached);
+      setOfflineActive(true);
     }
   }, [planId]);
 
@@ -201,6 +218,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
     setCurrentIndex(0);
     setChatInput('');
     setIsFlipped(false);
+    setOfflineActive(false);
 
     // Restore state from LocalStorage
     const saved = loadFromStorage(planId);
@@ -214,12 +232,26 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
       setQuestionChats({});
     }
 
-    fetch(`/api/plans/${planId}/questions`)
-      .then((r) => r.json())
-      .then((qs) => {
-        setQuestions(qs);
-      });
-    fetchProgress();
+    const loadQuestionsAndProgress = async () => {
+      try {
+        const res = await fetch(`/api/plans/${planId}/questions`);
+        if (res.ok) {
+          const qs = await res.json();
+          setQuestions(qs);
+          cacheQuestions(planId, qs);
+        } else {
+          throw new Error('Questions fetch failed');
+        }
+      } catch (err) {
+        console.warn('[OFFLINE] Fetch questions error, reading from cache:', err);
+        const cached = getCachedQuestions(planId);
+        setQuestions(cached);
+        setOfflineActive(true);
+      }
+      fetchProgress();
+    };
+
+    loadQuestionsAndProgress();
   }, [planId, fetchProgress]);
 
   // Save changes to localStorage on any state modification
@@ -287,6 +319,10 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
         body: JSON.stringify({ question_id: q.id, selected_answer: selectedAnswer }),
       });
 
+      if (!response.ok) {
+        throw new Error('Evaluation request failed');
+      }
+
       await processStream(response, (text) => {
         setExplanation((prev) => {
           const next = prev + text;
@@ -298,6 +334,9 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
       fetchProgress();
     } catch (err) {
       console.error(err);
+      const offlineMsg = "⚠️ **TUTOR CONNECTION OFFLINE**\n\nUnable to reach the AI instructor server. Deep evaluation and interactive grading require an active internet connection.\n\nHowever, you can still answer questions and review correct selections offline.";
+      setExplanation(offlineMsg);
+      setQuestionExplanations((prev) => ({ ...prev, [q.id]: offlineMsg }));
     } finally {
       setIsStreaming(false);
     }
@@ -331,6 +370,10 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
         }),
       });
 
+      if (!response.ok) {
+        throw new Error('Chat request failed');
+      }
+
       await processStream(response, (text) => {
         setChatLog((prev) => {
           const updated = [...prev];
@@ -347,6 +390,18 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
       });
     } catch (err) {
       console.error(err);
+      setChatLog((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last) {
+          updated[updated.length - 1] = {
+            ...last,
+            content: "⚠️ **CONNECTION OFFLINE**\n\nYour message could not be sent to the AI instructor. Please check your internet connection.",
+          };
+        }
+        setQuestionChats((c) => ({ ...c, [q.id]: updated }));
+        return updated;
+      });
     } finally {
       setIsChatting(false);
     }
@@ -574,6 +629,18 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
 
         {/* CONTAINER CONTENT ROUTING BY TABS */}
         <div className="flex-1 max-w-4xl mx-auto w-full p-4 md:p-8 flex flex-col gap-6">
+
+          {offlineActive && (
+            <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex items-start gap-3 text-amber-805 shadow-sm animate-fade-in">
+              <WifiOff className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-xs sm:text-sm text-amber-900">
+                <p className="font-bold">Offline Review Mode Enabled</p>
+                <p className="text-slate-600 font-medium mt-0.5 leading-relaxed">
+                  Working offline with loaded caches. You can browse questions, solve pattern options, examine active recall flashcards, and navigate the syllabus freely. AI evaluation and teacher chatbots are disabled until connection restores.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* TAB 1: PRACTICE MODE PANEL */}
           {activeMode === 'practice' && (
