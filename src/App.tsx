@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import PracticeSession from './components/PracticeSession';
 import { ExamPlan } from './types';
+import { BookOpen, Trash2, ArrowUpRight, FolderHeart, PlusCircle, Sparkles } from 'lucide-react';
 
 // The PromptPass Logo: Fusion of Brain (Mind/AI) and Book (Knowledge)
 export const AppLogo = () => (
-  <div style={{ display: 'flex', alignItems: 'center' }}>
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+  <div className="flex items-center">
+    <div className="relative flex items-center">
       <svg
-        width="44"
-        height="44"
+        width="38"
+        height="38"
         viewBox="0 0 24 24"
         fill="none"
         stroke="#38bdf8"
-        strokeWidth="2.2"
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+        className="shrink-0"
       >
         {/* Brain Hemisphere Silhouette */}
         <path d="M12 5a5 5 0 0 0-5 5v3a5 5 0 0 0 10 0v-3a5 5 0 0 0-5-5Z" />
@@ -25,16 +27,7 @@ export const AppLogo = () => (
         {/* AI Apex Neural Node */}
         <circle cx="12" cy="4" r="1.2" fill="#38bdf8" stroke="none" />
       </svg>
-      <span
-        style={{
-          fontSize: '1.6rem',
-          fontWeight: 900,
-          color: '#38bdf8',
-          marginLeft: '-2px',
-          letterSpacing: '-1.5px',
-          fontFamily: 'system-ui',
-        }}
-      >
+      <span className="text-xl font-black text-sky-400 -ml-0.5 tracking-tighter font-sans select-none">
         .ai
       </span>
     </div>
@@ -138,176 +131,85 @@ export default function App() {
   }
 
   return (
-    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: '"Inter", -apple-system, sans-serif' }}>
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-850">
       
-      {/* HEADER CONTROL BAR */}
-      <nav
-        style={{
-          background: '#0f172a',
-          padding: '1rem 4rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+      {/* RESPONSIVE HEADER BAR */}
+      <nav className="bg-slate-900 border-b border-slate-800 text-white py-4 px-4 sm:px-8 flex items-center justify-between shadow-lg">
+        <div className="flex items-center gap-3">
           <AppLogo />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h1
-              style={{
-                margin: '0 0 0 15px',
-                fontSize: '1.8rem',
-                color: '#fff',
-                fontWeight: 800,
-                letterSpacing: '-0.8px',
-              }}
-            >
+          <div>
+            <h1 className="text-lg sm:text-xl font-black text-white tracking-tight leading-none">
               PromptPass
             </h1>
-            <span
-              style={{
-                background: 'rgba(255,255,255,0.12)',
-                color: '#e2e8f0',
-                border: '1px solid rgba(226,232,240,0.25)',
-                borderRadius: '12px',
-                padding: '6px 12px',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-              }}
-            >
-              v1
+            <span className="text-[9px] font-bold text-sky-400 tracking-widest uppercase">
+              Mastery Engine
             </span>
           </div>
         </div>
-        <div style={{ color: '#94a3b8', fontSize: '0.9rem', fontWeight: 500 }}>
-          AI-Powered Certification Mastery Desk
+        <div className="text-right hidden sm:block">
+          <span className="inline-block bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider">
+            AI Tutor Companion
+          </span>
         </div>
       </nav>
 
-      <div style={{ maxWidth: '1100px', margin: '60px auto', padding: '0 20px' }}>
+      {/* DASHBOARD HERO CONTAINER */}
+      <div className="flex-grow max-w-5xl mx-auto w-full px-4 py-8 sm:py-12 flex flex-col gap-10">
         
-        {/* GRIDS WORKSPACES SECTION */}
-        <section style={{ marginBottom: '80px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-            <h2 style={{ fontSize: '1.6rem', color: '#1e293b', margin: 0 }}>My Study Workspaces</h2>
-            <span
-              style={{
-                background: '#e2e8f0',
-                padding: '4px 12px',
-                borderRadius: '20px',
-                fontSize: '0.85rem',
-                color: '#475569',
-                fontWeight: 600,
-              }}
-            >
-              {plans.length} Sessions Active
+        {/* WORKSPACES SECTION */}
+        <section className="flex flex-col gap-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <FolderHeart className="w-6 h-6 text-sky-500" /> Active study rooms
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">Continue your structured certification revision paths.</p>
+            </div>
+            <span className="bg-slate-200 text-slate-700 font-bold text-xs px-3 py-1 rounded-full uppercase leading-none mt-1">
+              {plans.length} workspaces
             </span>
           </div>
 
           {plans.length === 0 ? (
-            <div
-              style={{
-                background: '#fff',
-                padding: '60px',
-                borderRadius: '24px',
-                textAlign: 'center',
-                border: '2px dashed #cbd5e1',
-                color: '#64748b',
-              }}
-            >
-              <p style={{ fontSize: '1.1rem' }}>
-                No active study workspaces yet. Upload a certification questions PDF bank to initiate.
+            <div className="bg-white p-10 sm:p-16 rounded-2xl border-2 border-dashed border-slate-200/80 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <p className="font-semibold text-sm sm:text-base leading-relaxed max-w-md antialiased text-slate-600">
+                No active exam rooms. Upload a practice document below to spawn your personalized AI classroom space!
               </p>
             </div>
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                gap: '25px',
-              }}
-            >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {plans.map((plan) => (
                 <div
                   key={plan.id}
                   onClick={() => setActivePlanId(plan.id)}
-                  style={{
-                    background: '#fff',
-                    padding: '28px',
-                    borderRadius: '20px',
-                    border: '1px solid #e2e8f0',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-                    position: 'relative',
-                    transition: 'all 0.3s ease',
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-5px)';
-                    e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0,0,0,0.1)';
-                    e.currentTarget.style.borderColor = '#38bdf8';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)';
-                    e.currentTarget.style.borderColor = '#e2e8f0';
-                  }}
+                  className="bg-white p-6 rounded-2xl border border-slate-200/60 cursor-pointer shadow-sm hover:shadow-xl hover:border-sky-300 transform hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between gap-5 group"
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ overflow: 'hidden' }}>
-                      <h3
-                        style={{
-                          margin: '0 0 8px 0',
-                          fontSize: '1.2rem',
-                          color: '#0f172a',
-                          lineHeight: '1.4',
-                        }}
-                      >
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="min-w-0">
+                      <h3 className="font-black text-slate-800 text-sm sm:text-base leading-snug group-hover:text-sky-600 transition-colors line-clamp-2">
                         {plan.title}
                       </h3>
-                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
-                        Created {new Date(plan.created_at).toLocaleDateString()}
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">
+                        Uploaded {new Date(plan.created_at).toLocaleDateString()}
                       </p>
                     </div>
+
                     <button
                       onClick={(e) => handleDelete(e, plan.id)}
-                      style={{
-                        background: '#fef2f2',
-                        border: 'none',
-                        padding: '10px',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        transition: '0.2s',
-                      }}
-                      onMouseOver={(e) => (e.currentTarget.style.background = '#fee2e2')}
-                      onMouseOut={(e) => (e.currentTarget.style.background = '#fef2f2')}
+                      className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl transition-all border-none cursor-pointer shrink-0"
+                      title="Delete study workspace"
                     >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#ef4444"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  <div
-                    style={{
-                      marginTop: '20px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: '#0ea5e9',
-                      fontSize: '0.9rem',
-                      fontWeight: 700,
-                    }}
-                  >
-                    Open Session →
+
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-auto">
+                    <span className="text-xs font-bold text-sky-500 flex items-center gap-1 group-hover:gap-2 transition-all">
+                      Open Room <ArrowUpRight className="w-3.5 h-3.5" />
+                    </span>
                   </div>
                 </div>
               ))}
@@ -316,125 +218,75 @@ export default function App() {
         </section>
 
         {/* STUDY PLAN FILE INITIALIZER FORM */}
-        <section
-          style={{
-            background: '#fff',
-            padding: '45px',
-            borderRadius: '24px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.05)',
-          }}
-        >
-          <h2 style={{ fontSize: '1.6rem', color: '#0f172a', marginBottom: '10px' }}>Initialize New Workspace</h2>
-          <p style={{ color: '#64748b', marginBottom: '35px', fontSize: '1.05rem' }}>
-            Upload a PDF document containing certification syllabus questions to instantiate an independent, AI-powered certification learning room.
-          </p>
+        <section className="bg-white border border-slate-200/60 p-6 sm:p-10 rounded-3xl shadow-xl flex flex-col gap-6">
+          <div className="border-b border-slate-100 pb-5">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <PlusCircle className="w-6 h-6 text-sky-500 animate-pulse" /> Initialize study room
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed mt-1">
+              Add custom exam question papers in PDF or TXT. Our parser extracts syllabus patterns, configures interactive study lists, and builds automated flashcard decks.
+            </p>
+          </div>
 
-          <form onSubmit={handleUpload} style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1.5', minWidth: '300px' }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  color: '#475569',
-                  marginBottom: '8px',
-                }}
-              >
-                WORKSPACE NAME
+          <form onSubmit={handleUpload} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-none">
+                Exam Workspace Title
               </label>
               <input
                 name="plan_title"
-                placeholder="e.g., AWS Security Specialist (SCS-C02) or PMP Syllabus"
+                placeholder="e.g. AWS Solutions Architect (SAA-C03)"
                 required
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  border: '2px solid #f1f5f9',
-                  background: '#f8fafc',
-                  fontSize: '1rem',
-                  outline: 'none',
-                  transition: '0.2s',
-                }}
-                onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
-                onBlur={(e) => (e.target.style.borderColor = '#f1f5f9')}
+                className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white text-xs sm:text-sm font-semibold text-slate-800 outline-none focus:border-sky-400 focus:bg-white transition-all shadow-inner"
               />
             </div>
 
-            <div style={{ flex: '1', minWidth: '300px' }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  color: '#475569',
-                  marginBottom: '8px',
-                }}
-              >
-                PDF / TXT SOURCE FILE
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-none">
+                Exam Question Source File
               </label>
               <input
                 type="file"
                 name="question_bank"
                 accept=".pdf,.txt,.text"
                 required
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  border: '2px dashed #cbd5e1',
-                  background: '#f8fafc',
-                  cursor: 'pointer',
-                }}
+                className="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[11px] file:font-extrabold file:uppercase file:tracking-wider file:bg-sky-100 file:text-sky-800 hover:file:bg-sky-200 cursor-pointer border border-slate-200 bg-slate-50 p-2 rounded-xl"
               />
             </div>
 
             {uploadError && (
-              <div
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  backgroundColor: '#fef2f2',
-                  border: '1px solid #fee2e2',
-                  borderRadius: '10px',
-                  color: '#ef4444',
-                  fontSize: '0.9rem',
-                }}
-              >
-                {uploadError}
+              <div className="sm:col-span-2 p-4 bg-rose-50 border border-solid border-rose-100 rounded-xl text-rose-500 text-xs font-bold leading-normal flex items-start gap-2">
+                <Trash2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{uploadError}</span>
               </div>
             )}
 
             <button
               type="submit"
               disabled={isUploading}
-              style={{
-                width: '100%',
-                marginTop: '10px',
-                padding: '18px',
-                background: isUploading ? '#94a3b8' : '#0f172a',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '14px',
-                cursor: isUploading ? 'wait' : 'pointer',
-                fontWeight: 800,
-                fontSize: '1.1rem',
-                transition: '0.2s',
-                boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.3)',
-              }}
-              onMouseOver={(e) => {
-                if (!isUploading) e.currentTarget.style.background = '#1e293b';
-              }}
-              onMouseOut={(e) => {
-                if (!isUploading) e.currentTarget.style.background = '#0f172a';
-              }}
+              className={`sm:col-span-2 py-4 rounded-2xl text-white font-black text-sm sm:text-base border-none transition-all cursor-pointer shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2
+                ${isUploading ? 'bg-slate-300 text-slate-500 cursor-wait pointer-events-none shadow-none' : 'bg-slate-900 hover:bg-slate-800'}
+              `}
             >
-              {isUploading ? '⌛ EXTRACTING CERTIFICATION PATTERNS...' : 'GENERATE WORKSPACE'}
+              {isUploading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></span>
+                  STRUCTURING REVISION PATTERNS...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-sky-400 shrink-0" /> BOOT STUDY DESK
+                </span>
+              )}
             </button>
           </form>
         </section>
       </div>
+
+      {/* FOOTER */}
+      <footer className="text-center py-6 border-t border-slate-200 text-[11px] font-bold text-slate-400 select-none bg-white">
+        © 2026 PromptPass .ai — Premium Certification Study Rooms
+      </footer>
     </div>
   );
 }

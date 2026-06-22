@@ -1,67 +1,54 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { 
+  BookOpen, 
+  CheckCircle2, 
+  XCircle, 
+  BarChart3, 
+  Layers, 
+  ArrowLeft, 
+  ArrowRight, 
+  RotateCcw, 
+  MessageSquare, 
+  Menu, 
+  X, 
+  Sparkles,
+  HelpCircle,
+  TrendingUp,
+  ListFilter
+} from 'lucide-react';
 import { ExamPlan, Question, ProgressItem, ChatMessage } from '../types';
-
 import { AppLogo } from '../App';
 
 const MarkdownComponents = {
   h1: ({ ...props }: any) => (
-    <h1 style={{ fontSize: '1.4rem', color: '#0f172a', marginTop: '24px', marginBottom: '12px' }} {...props} />
+    <h1 className="text-xl font-bold text-slate-800 mt-6 mb-3" {...props} />
   ),
   h2: ({ ...props }: any) => (
-    <h2
-      style={{
-        fontSize: '1.2rem',
-        color: '#0f172a',
-        marginTop: '18px',
-        marginBottom: '10px',
-        borderBottom: '1px solid #e2e8f0',
-        paddingBottom: '6px',
-      }}
-      {...props}
-    />
+    <h2 className="text-lg font-bold text-slate-800 mt-5 mb-2 border-b border-slate-200 pb-1.5" {...props} />
   ),
   h3: ({ ...props }: any) => (
-    <h3 style={{ fontSize: '1.05rem', color: '#0f172a', marginTop: '14px', marginBottom: '6px' }} {...props} />
+    <h3 className="text-base font-bold text-slate-800 mt-4 mb-2" {...props} />
   ),
   p: ({ ...props }: any) => (
-    <p style={{ fontSize: '1.02rem', color: '#334155', lineHeight: '1.75', marginBottom: '12px' }} {...props} />
+    <p className="text-sm md:text-base text-slate-600 leading-relaxed mb-3" {...props} />
   ),
   strong: ({ ...props }: any) => (
-    <strong style={{ color: '#0ea5e9', fontWeight: '700' }} {...props} />
+    <strong className="text-sky-500 font-semibold" {...props} />
   ),
   ul: ({ ...props }: any) => (
-    <ul style={{ paddingLeft: '20px', color: '#334155', marginBottom: '12px', lineHeight: '1.75' }} {...props} />
+    <ul className="list-disc pl-5 text-slate-600 mb-3 space-y-1 text-sm md:text-base" {...props} />
   ),
   code: ({ children, className, ...props }: any) => {
     const isInline = !className || !className.startsWith('language-');
     return isInline ? (
-      <code
-        style={{
-          background: '#f1f5f9',
-          padding: '2px 6px',
-          borderRadius: '5px',
-          color: '#db2777',
-          fontSize: '0.9em',
-          fontFamily: 'monospace',
-        }}
-        {...props}
-      >
+      <code className="bg-slate-100 px-1.5 py-0.5 rounded text-pink-600 text-xs md:text-sm font-mono" {...props}>
         {children}
       </code>
     ) : (
-      <pre
-        style={{
-          background: '#0f172a',
-          color: '#e2e8f0',
-          padding: '18px',
-          borderRadius: '10px',
-          overflowX: 'auto',
-          marginBottom: '18px',
-        }}
-      >
-        <code style={{ fontFamily: 'monospace', fontSize: '0.92em' }} {...props}>
+      <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto my-3 text-xs md:text-sm">
+        <code className="font-mono" {...props}>
           {children}
         </code>
       </pre>
@@ -92,24 +79,6 @@ function saveToStorage(planId: string, data: SavedState) {
   } catch {}
 }
 
-function StatusDot({ status }: { status: string }) {
-  const colors: Record<string, string> = { green: '#10b981', red: '#ef4444', gray: '#cbd5e1' };
-  const titles: Record<string, string> = { green: 'Correct', red: 'Incorrect', gray: 'Not attempted' };
-  return (
-    <span
-      title={titles[status] || 'Unknown'}
-      style={{
-        display: 'inline-block',
-        width: '8px',
-        height: '8px',
-        borderRadius: '50%',
-        backgroundColor: colors[status] || colors.gray,
-        flexShrink: 0,
-      }}
-    />
-  );
-}
-
 interface ReviewModalProps {
   questions: Question[];
   progress: ProgressItem[];
@@ -121,60 +90,34 @@ interface ReviewModalProps {
 function ReviewModal({ questions, progress, filter, onClose, onNavigate }: ReviewModalProps) {
   const filtered = progress.filter((p) => p.status === filter);
   const label = filter === 'green' ? 'Correct' : 'Incorrect';
-  const accent = filter === 'green' ? '#10b981' : '#ef4444';
-  const bgAccent = filter === 'green' ? '#f0fdf4' : '#fef2f2';
+  const accentClass = filter === 'green' ? 'text-emerald-500 border-emerald-200 bg-emerald-50' : 'text-rose-500 border-rose-200 bg-rose-50';
+  const iconClass = filter === 'green' ? 'text-emerald-500' : 'text-rose-500';
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.55)',
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: '#fff',
-          borderRadius: '18px',
-          width: '480px',
-          maxHeight: '70vh',
-          overflowY: 'auto',
-          padding: '32px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        }}
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div 
+        className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h3 style={{ margin: 0, color: accent, fontSize: '1.15rem' }}>
-            {label} Questions ({filtered.length})
-          </h3>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.4rem',
-              cursor: 'pointer',
-              color: '#64748b',
-              lineHeight: 1,
-            }}
-          >
-            ×
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <div className="flex items-center gap-2">
+            {filter === 'green' ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <XCircle className="w-5 h-5 text-rose-500" />}
+            <h3 className="font-bold text-slate-800 text-base md:text-lg">
+              {label} Questions ({filtered.length})
+            </h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-200 transition-colors">
+            <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
 
-        {filtered.length === 0 ? (
-          <p style={{ color: '#64748b', textAlign: 'center', padding: '20px 0' }}>
-            No {label.toLowerCase()} questions yet.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {filtered.map((item) => {
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {filtered.length === 0 ? (
+            <p className="text-slate-500 text-center py-8 text-sm">
+              No {label.toLowerCase()} questions yet. Keep practicing!
+            </p>
+          ) : (
+            filtered.map((item) => {
               const q = questions.find((ques) => ques.id === item.question_id);
               if (!q) return null;
               return (
@@ -185,47 +128,19 @@ function ReviewModal({ questions, progress, filter, onClose, onNavigate }: Revie
                     onNavigate(idx);
                     onClose();
                   }}
-                  style={{
-                    backgroundColor: bgAccent,
-                    border: `1px solid ${accent}30`,
-                    borderRadius: '10px',
-                    padding: '14px 16px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'transform 0.15s',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.transform = 'translateX(4px)')}
-                  onMouseOut={(e) => (e.currentTarget.style.transform = 'translateX(0px)')}
+                  className={`w-full text-left p-4 rounded-xl border border-solid hover:scale-[1.01] transition-all flex flex-col gap-1.5 ${accentClass}`}
                 >
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      color: accent,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    Q {q.question_number}
+                  <span className="text-xs font-bold tracking-wider">
+                    QUESTION #{q.question_number}
                   </span>
-                  <p
-                    style={{
-                      margin: '4px 0 0',
-                      fontSize: '0.92rem',
-                      color: '#0f172a',
-                      lineHeight: '1.45',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
-                  >
+                  <p className="text-sm font-medium text-slate-800 line-clamp-3 leading-relaxed">
                     {q.text}
                   </p>
                 </button>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </div>
     </div>
   );
@@ -242,6 +157,16 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
   const [questions, setQuestions] = useState<Question[]>([]);
   const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Tab State: practice, flashcard, dashboard
+  const [activeTab, setActiveTab] = useState<'practice' | 'flashcard' | 'dashboard'>('practice');
+
+  // Flashcard flipping state
+  const [isFlipped, setIsFlipped] = useState(false);
+
+  // Mobile Drawer State
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
 
   // Per-question persistent state (keyed by question ID)
   const [questionAnswers, setQuestionAnswers] = useState<Record<string, string>>({});
@@ -275,6 +200,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
   useEffect(() => {
     setCurrentIndex(0);
     setChatInput('');
+    setIsFlipped(false);
 
     // Restore state from LocalStorage
     const saved = loadFromStorage(planId);
@@ -314,9 +240,9 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
     setExplanation(questionExplanations[q.id] || '');
     setChatLog(questionChats[q.id] || []);
     setChatInput('');
+    setIsFlipped(false); // Reset flip on navigation
   }, [currentIndex, questions, questionAnswers, questionExplanations, questionChats]);
 
-  // Parse stream chunks line-by-line helper
   const processStream = async (response: Response, stateUpdater: (text: string) => void) => {
     if (!response.body) return;
     const reader = response.body.getReader();
@@ -342,11 +268,12 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
   };
 
   const handleCheckAnswer = async () => {
-    if (!selectedAnswer) return alert('Please choose an answer first!');
+    if (!selectedAnswer) return;
     const q = questions[currentIndex];
     if (!q) return;
 
     // Optimistically clear explanation & chats
+    setExplanation('');
     setExplanation('');
     setQuestionExplanations((prev) => ({ ...prev, [q.id]: '' }));
     setChatLog([]);
@@ -449,21 +376,21 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
       if (e.key === 'ArrowRight') navigate(1);
 
       const optionKeys: Record<string, string> = { '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E', '6': 'F' };
-      if (optionKeys[e.key] && questions[currentIndex]) {
+      if (optionKeys[e.key] && questions[currentIndex] && activeTab === 'practice') {
         const opts = questions[currentIndex].options;
         if (opts[optionKeys[e.key]]) {
           handleSelectAnswer(optionKeys[e.key]);
         }
       }
 
-      if (e.key === 'Enter' && !isStreaming && !isChatting) {
+      if (e.key === 'Enter' && !isStreaming && !isChatting && activeTab === 'practice') {
         handleCheckAnswer();
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [navigate, currentIndex, questions, isStreaming, isChatting, selectedAnswer]);
+  }, [navigate, currentIndex, questions, isStreaming, isChatting, selectedAnswer, activeTab]);
 
   const handleChatKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -474,88 +401,72 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
 
   if (!questions.length) {
     return (
-      <div
-        style={{
-          height: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'Inter, system-ui, sans-serif',
-          color: '#64748b',
-        }}
-      >
-        Loading workspace…
+      <div className="h-screen w-screen flex flex-col gap-3 items-center justify-center font-sans text-slate-500 bg-slate-50">
+        <div className="w-12 h-12 border-4 border-sky-400 border-t-transparent rounded-full animate-spin"></div>
+        <p className="font-semibold text-sm antialiased text-slate-600">Structuring Study Rooms...</p>
       </div>
     );
   }
 
   const currentQuestion = questions[currentIndex];
   const total = questions.length;
+  const progressByQuestion = progress.reduce<Record<string, string>>((acc, curr) => {
+    acc[curr.question_id] = curr.status;
+    return acc;
+  }, {});
+
   const attempted = progress.filter((p) => p.status !== 'gray').length;
   const correct = progress.filter((p) => p.status === 'green').length;
   const wrong = progress.filter((p) => p.status === 'red').length;
   const progressPct = total > 0 ? Math.round((attempted / total) * 100) : 0;
+  const accuracyPct = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+
+  const currentStatus = progressByQuestion[currentQuestion.id] || 'gray';
+  const activeMode = activeTab;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100vh',
-        width: '100vw',
-        fontFamily: '"Inter", system-ui, sans-serif',
-        backgroundColor: '#f4f4f5',
-        overflow: 'hidden',
-      }}
-    >
-      {/* SIDEBAR VIEW PANEL */}
-      <div
-        style={{
-          width: '300px',
-          background: '#0f172a',
-          color: '#fff',
-          padding: '28px 22px',
-          display: 'flex',
-          flexDirection: 'column',
-          flexShrink: 0,
-          overflowY: 'auto',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '32px' }}>
+    <div className="flex h-screen w-screen font-sans bg-slate-100 overflow-hidden text-slate-900 select-none">
+      
+      {/* MOBILE HEADER BAR */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 text-white flex items-center justify-between px-4 z-40 shadow-md">
+        <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-slate-800 rounded-lg">
+          <Menu className="w-6 h-6" />
+        </button>
+        <div className="flex items-center gap-1.5">
           <AppLogo />
-          <h1 style={{ margin: '0 0 0 10px', fontSize: '1.4rem', fontWeight: 800 }}>PromptPass</h1>
+          <span className="font-extrabold text-white text-base tracking-tight">PromptPass</span>
+        </div>
+        <button onClick={() => setDirectoryOpen(true)} className="p-2 -mr-2 hover:bg-slate-800 rounded-lg text-sky-400">
+          <Layers className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* DETAILED SIDEBAR DESKTOP VIEW */}
+      <div className={`
+        fixed inset-y-0 left-0 w-[280px] bg-slate-900 text-white flex flex-col z-50 p-6 overflow-y-auto transition-transform duration-300 md:relative md:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2">
+            <AppLogo />
+            <h1 className="text-xl font-black text-white tracking-tight">PromptPass</h1>
+          </div>
+          <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1.5 hover:bg-slate-800 rounded-lg">
+            <X className="w-5 h-5 text-slate-400" />
+          </button>
         </div>
 
         <button
           onClick={onBack}
-          style={{
-            padding: '11px',
-            background: '#1e293b',
-            color: '#94a3b8',
-            borderRadius: '10px',
-            border: 'none',
-            marginBottom: '16px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            transition: 'color 0.15s',
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.color = '#fff')}
-          onMouseOut={(e) => (e.currentTarget.style.color = '#94a3b8')}
+          className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-bold text-sm transition-all mb-4 text-left flex items-center gap-1.5"
         >
-          ← Dashboard
+          <ArrowLeft className="w-4 h-4" /> Exit Room
         </button>
 
         <select
           value={planId}
           onChange={(e) => onSwitch(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '11px',
-            borderRadius: '10px',
-            background: '#1e293b',
-            color: '#fff',
-            marginBottom: '28px',
-            border: '1px solid #334155',
-          }}
+          className="w-full py-2.5 px-3 bg-slate-800 text-white rounded-xl text-xs font-semibold border border-slate-700 focus:outline-none mb-6"
         >
           {plans.map((p) => (
             <option key={p.id} value={p.id}>
@@ -564,405 +475,575 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
           ))}
         </select>
 
-        {/* PROGRESS METRICS */}
-        <div style={{ marginBottom: '20px' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: '0.8rem',
-              color: '#94a3b8',
-              marginBottom: '6px',
-            }}
-          >
-            <span>Progress</span>
-            <span>{progressPct}%</span>
+        {/* PROGRESS METRIC BAR */}
+        <div className="mb-6 bg-slate-800/40 p-4 rounded-xl border border-slate-800/60">
+          <div className="flex justify-between text-xs text-slate-400 font-bold mb-1.5">
+            <span>Syllabus Progress</span>
+            <span className="text-sky-400">{progressPct}%</span>
           </div>
-          <div style={{ background: '#1e293b', borderRadius: '999px', height: '6px', overflow: 'hidden' }}>
+          <div className="bg-slate-800 rounded-full h-2 overflow-hidden">
             <div
-              style={{
-                width: `${progressPct}%`,
-                height: '100%',
-                background: 'linear-gradient(90deg, #0ea5e9, #10b981)',
-                borderRadius: '999px',
-                transition: 'width 0.4s ease',
-              }}
+              className="h-full bg-gradient-to-r from-sky-400 to-emerald-400 rounded-full transition-all duration-300"
+              style={{ width: `${progressPct}%` }}
             />
           </div>
+          <p className="text-[10px] text-slate-500 font-medium mt-2">
+            {attempted} of {total} patterns completed
+          </p>
         </div>
 
-        {/* STATS BUTTONS FOR MODAL AUDITS */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '28px' }}>
-          <div
-            style={{
-              background: '#1e293b',
-              padding: '14px',
-              borderRadius: '10px',
-              textAlign: 'center',
-              fontSize: '0.85rem',
-              color: '#94a3b8',
-            }}
-          >
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff' }}>{total}</div>
-            Total
-          </div>
-          <div
-            style={{
-              background: '#1e293b',
-              padding: '14px',
-              borderRadius: '10px',
-              textAlign: 'center',
-              fontSize: '0.85rem',
-              color: '#94a3b8',
-            }}
-          >
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff' }}>{attempted}</div>
-            Done
-          </div>
-
+        {/* WORKSPACE MODE TABS (Practice, Flashcards, Progress) */}
+        <div className="flex flex-col gap-2 mb-6">
+          <p className="text-[10px] tracking-wider text-slate-500 font-black uppercase mb-1">Room Activities</p>
+          
           <button
-            onClick={() => setReviewFilter('green')}
-            style={{
-              background: '#052e16',
-              padding: '14px',
-              borderRadius: '10px',
-              textAlign: 'center',
-              fontSize: '0.85rem',
-              color: '#6eee87',
-              border: '1px solid #10b98130',
-              cursor: 'pointer',
-              transition: 'border-color 0.15s',
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.borderColor = '#10b981')}
-            onMouseOut={(e) => (e.currentTarget.style.borderColor = '#10b98130')}
-            title="Click to review correct answers"
+            onClick={() => { setActiveTab('practice'); setSidebarOpen(false); }}
+            className={`py-3 px-3.5 rounded-xl font-bold text-sm text-left flex items-center gap-2.5 transition-all
+              ${activeTab === 'practice' ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+            `}
           >
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#10b981' }}>{correct}</div>
-            Correct →
+            <BookOpen className="w-4 h-4" /> Active Tutor Exam
           </button>
 
           <button
-            onClick={() => setReviewFilter('red')}
-            style={{
-              background: '#2d0a0a',
-              padding: '14px',
-              borderRadius: '10px',
-              textAlign: 'center',
-              fontSize: '0.85rem',
-              color: '#fca5a5',
-              border: '1px solid #ef444430',
-              cursor: 'pointer',
-              transition: 'border-color 0.15s',
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.borderColor = '#ef4444')}
-            onMouseOut={(e) => (e.currentTarget.style.borderColor = '#ef444430')}
-            title="Click to review incorrect answers"
+            onClick={() => { setActiveTab('flashcard'); setSidebarOpen(false); }}
+            className={`py-3 px-3.5 rounded-xl font-bold text-sm text-left flex items-center gap-2.5 transition-all
+              ${activeTab === 'flashcard' ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+            `}
           >
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ef4444' }}>{wrong}</div>
-            Wrong →
+            <Layers className="w-4 h-4" /> Concept Flashcards
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
+            className={`py-3 px-3.5 rounded-xl font-bold text-sm text-left flex items-center gap-2.5 transition-all
+              ${activeTab === 'dashboard' ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/10' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+            `}
+          >
+            <BarChart3 className="w-4 h-4" /> Stats & Review Panel
           </button>
         </div>
 
-        {/* KEYBOARD SHORTCUTS LEGEND */}
-        <div
-          style={{
-            background: '#1e293b',
-            borderRadius: '10px',
-            padding: '14px',
-            fontSize: '0.76rem',
-            color: '#64748b',
-            lineHeight: '1.7',
-          }}
-        >
-          <div style={{ color: '#94a3b8', fontWeight: 700, marginBottom: '6px' }}>⌨ Shortcuts</div>
-          <div>← → Navigate questions</div>
-          <div>1–4 Select option A–D</div>
-          <div>Enter Submit answer</div>
-          <div>⌘↵ Send chat message</div>
+        {/* MINI SUMMARY ACCORDION */}
+        <div className="mt-auto pt-6 border-t border-slate-800/80">
+          <div className="grid grid-cols-2 gap-2 text-center text-xs font-semibold text-slate-400">
+            <button onClick={() => { setReviewFilter('green'); setSidebarOpen(false); }} className="bg-slate-800/60 p-3 rounded-xl border border-slate-800 hover:bg-slate-800 transition-colors">
+              <span className="block text-emerald-400 text-base font-black">{correct}</span>
+              Correct
+            </button>
+            <button onClick={() => { setReviewFilter('red'); setSidebarOpen(false); }} className="bg-slate-800/60 p-3 rounded-xl border border-slate-800 hover:bg-slate-800 transition-colors">
+              <span className="block text-rose-400 text-base font-black">{wrong}</span>
+              Incorrect
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* CORE PROBLEM SCREEN */}
-      <div
-        style={{
-          flex: 1,
-          padding: '40px 50px',
-          overflowY: 'auto',
-          backgroundColor: '#fff',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <div style={{ maxWidth: '820px', margin: '0 auto', width: '100%' }}>
-          {/* TOP NAV CONTROLS */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
-            <span
-              style={{
-                background: '#e0f2fe',
-                color: '#0369a1',
-                padding: '4px 14px',
-                borderRadius: '20px',
-                fontWeight: 800,
-                fontSize: '0.85rem',
-              }}
-            >
-              Q {currentQuestion.question_number} / {total}
-            </span>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => navigate(-1)}
-                disabled={currentIndex === 0}
-                style={{
-                  padding: '8px 16px',
-                  background: currentIndex === 0 ? '#f1f5f9' : '#fff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
-                  color: currentIndex === 0 ? '#94a3b8' : '#0f172a',
-                  fontWeight: 600,
-                  fontSize: '0.88rem',
-                }}
-              >
-                ← Prev
-              </button>
-              <button
-                onClick={() => navigate(1)}
-                disabled={currentIndex === total - 1}
-                style={{
-                  padding: '8px 16px',
-                  background: currentIndex === total - 1 ? '#f1f5f9' : '#fff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  cursor: currentIndex === total - 1 ? 'not-allowed' : 'pointer',
-                  color: currentIndex === total - 1 ? '#94a3b8' : '#0f172a',
-                  fontWeight: 600,
-                  fontSize: '0.88rem',
-                }}
-              >
-                Next →
-              </button>
-            </div>
+      {/* MAIN CONTENT SCREEN AREA */}
+      <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto pt-16 md:pt-0">
+        
+        {/* DESKTOP HEADER ACTION CONTROL ROW */}
+        <div className="hidden md:flex h-14 border-b border-slate-200 bg-white items-center justify-between px-8">
+          <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
+            <span>Workspace: <strong className="text-slate-800">{currentQuestion.text ? `Quiz Pattern #${currentQuestion.question_number}` : ""}</strong></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+            <span>Target: <strong className="text-sky-500 uppercase tracking-widest">{plans.find(p => p.id === planId)?.title || "AWS Exam"}</strong></span>
           </div>
 
-          <p style={{ fontSize: '1.2rem', color: '#0f172a', lineHeight: '1.7', marginBottom: '28px' }}>
-            {currentQuestion.text}
-          </p>
+          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+            <button 
+              onClick={() => setActiveTab('practice')} 
+              className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors ${activeTab === 'practice' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              Quiz Active
+            </button>
+            <button 
+              onClick={() => setActiveTab('flashcard')} 
+              className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors ${activeTab === 'flashcard' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              Flashcards
+            </button>
+            <button 
+              onClick={() => setActiveTab('dashboard')} 
+              className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors ${activeTab === 'dashboard' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              Metrics Room
+            </button>
+          </div>
+        </div>
 
-          {/* RADIO GRID LIST OPTIONS */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {Object.entries(currentQuestion.options).map(([key, val]) => {
-              const isSelected = selectedAnswer === key;
-              return (
-                <label
-                  key={key}
-                  style={{
-                    padding: '16px 20px',
-                    border: `2px solid ${isSelected ? '#38bdf8' : '#e2e8f0'}`,
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    background: isSelected ? '#f0f9ff' : '#fff',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '14px',
-                    transition: 'border-color 0.15s, background 0.15s',
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="answer"
-                    value={key}
-                    checked={isSelected}
-                    onChange={() => handleSelectAnswer(key)}
-                    style={{ marginTop: '2px', flexShrink: 0 }}
-                  />
-                  <span style={{ color: '#0f172a', fontSize: '1rem', lineHeight: '1.55' }}>
-                    <strong style={{ color: '#0ea5e9', marginRight: '6px' }}>{key}.</strong>
-                    {val}
+        {/* CONTAINER CONTENT ROUTING BY TABS */}
+        <div className="flex-1 max-w-4xl mx-auto w-full p-4 md:p-8 flex flex-col gap-6">
+
+          {/* TAB 1: PRACTICE MODE PANEL */}
+          {activeMode === 'practice' && (
+            <div className="flex flex-col gap-6 animate-fade-in">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-5 md:p-8 flex flex-col gap-5">
+                
+                {/* ID & NAVIGATION */}
+                <div className="flex justify-between items-center bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
+                  <span className="bg-sky-100 text-sky-800 font-extrabold text-xs tracking-wider px-2.5 py-1 rounded-full uppercase">
+                    Question {currentIndex + 1} of {total}
                   </span>
-                </label>
-              );
-            })}
-          </div>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(-1)}
+                      disabled={currentIndex === 0}
+                      className="px-3.5 py-2 text-xs font-bold bg-white text-slate-700 hover:text-slate-900 border border-slate-200/80 rounded-lg disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" /> Previous
+                    </button>
+                    <button
+                      onClick={() => navigate(1)}
+                      disabled={currentIndex === total - 1}
+                      className="px-3.5 py-2 text-xs font-bold bg-white text-slate-700 hover:text-slate-900 border border-slate-200/80 rounded-lg disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      Next <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
 
-          <button
-            onClick={handleCheckAnswer}
-            disabled={isStreaming || !selectedAnswer}
-            style={{
-              width: '100%',
-              padding: '17px',
-              background: isStreaming || !selectedAnswer ? '#94a3b8' : '#0f172a',
-              color: '#fff',
-              borderRadius: '12px',
-              marginTop: '24px',
-              fontWeight: 800,
-              fontSize: '1rem',
-              border: 'none',
-              cursor: isStreaming || !selectedAnswer ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s',
-            }}
-          >
-            {isStreaming ? '⚙ AI Evaluating...' : 'Submit & Evaluate  (Enter)'}
-          </button>
+                {/* QUESTION WORDING TEXT */}
+                <p className="text-base md:text-lg text-slate-800 font-medium leading-relaxed mt-2 select-text">
+                  {currentQuestion.text}
+                </p>
 
-          {/* AI EXPLANATIONS */}
-          {explanation && (
-            <div
-              style={{
-                marginTop: '44px',
-                padding: '36px',
-                background: '#fff',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)',
-              }}
-            >
-              <h3 style={{ marginTop: 0, color: '#0f172a', fontSize: '1.1rem' }}>AI Tutor Explanation</h3>
-              <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '28px', marginBottom: '28px' }}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
-                  {explanation}
-                </ReactMarkdown>
+                {/* OPTIONS SELECTION GRID - 100% MOBILE & ACCESSIBILITY READY */}
+                <div className="flex flex-col gap-3 mt-2">
+                  {Object.entries(currentQuestion.options).map(([key, val]) => {
+                    const isSelected = selectedAnswer === key;
+                    const choiceColors = isSelected 
+                      ? 'border-sky-400 bg-sky-50 text-slate-900 ring-2 ring-sky-100' 
+                      : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700 hover:bg-slate-50';
+
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => handleSelectAnswer(key)}
+                        className={`w-full p-4 rounded-xl border-2 border-solid text-left transition-all duration-150 flex items-start gap-3 cursor-pointer min-h-[52px] ${choiceColors}`}
+                      >
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border border-solid ${isSelected ? 'bg-sky-500 border-sky-500 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
+                          {key}
+                        </span>
+                        <span className="text-sm md:text-base font-medium leading-normal pt-0.5 select-text">
+                          {val}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* ACTION TRIGGER CHECK ANSWER */}
+                <button
+                  onClick={handleCheckAnswer}
+                  disabled={isStreaming || !selectedAnswer}
+                  className={`w-full py-4 text-center rounded-xl font-extrabold text-sm md:text-base text-white border-none transition-all cursor-pointer shadow-lg mt-2
+                    ${isStreaming || !selectedAnswer ? 'bg-slate-300 text-slate-500 shadow-none pointer-events-none' : 'bg-slate-800 hover:bg-slate-900 shadow-slate-800/10'}
+                  `}
+                >
+                  {isStreaming ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      AI Evaluating Choices...
+                    </span>
+                  ) : (
+                    'Submit & Fetch AI Tutoring  (Enter)'
+                  )}
+                </button>
               </div>
 
-              {/* INTERACTIVE FOLLOW-UP TUTOR CHAT */}
-              <h4 style={{ color: '#0f172a', marginBottom: '16px', fontSize: '0.95rem' }}>
-                Ask a follow-up question:
-              </h4>
-              {chatLog.map((msg, i) => (
-                <div
-                  key={i}
-                  style={{
-                    marginBottom: '14px',
-                    padding: '14px 18px',
-                    borderRadius: '12px',
-                    background: msg.role === 'user' ? '#f1f5f9' : '#eef2ff',
-                  }}
-                >
-                  <strong
-                    style={{
-                      display: 'block',
-                      fontSize: '0.72rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      marginBottom: '6px',
-                      color: msg.role === 'user' ? '#64748b' : '#4f46e5',
-                    }}
-                  >
-                    {msg.role === 'user' ? 'You' : 'PromptPass AI'}
-                  </strong>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
-                    {msg.content || '…'}
-                  </ReactMarkdown>
-                </div>
-              ))}
+              {/* FLOATING TEXT AI EXPLANATIONS ROOM */}
+              {explanation && (
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-6 md:p-8 flex flex-col gap-6 transition-all duration-300 animate-slide-up">
+                  <div className="flex items-center gap-2 text-sky-500 font-extrabold tracking-wider text-xs border-b border-slate-100 pb-4">
+                    <Sparkles className="w-5 h-5 animate-pulse text-sky-400" />
+                    AI TUTOR CRITIQUE & GRADE
+                  </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-                <textarea
-                  ref={chatInputRef}
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={handleChatKeyDown}
-                  placeholder="Ask about this question… (⌘ Enter to send)"
-                  rows={2}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    borderRadius: '10px',
-                    border: '1px solid #cbd5e1',
-                    resize: 'vertical',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                  }}
-                />
-                <button
-                  onClick={handleAskFollowUp}
-                  disabled={isChatting || !chatInput.trim()}
-                  style={{
-                    padding: '10px 20px',
-                    background: isChatting || !chatInput.trim() ? '#94a3b8' : '#0ea5e9',
-                    color: '#fff',
-                    borderRadius: '10px',
-                    border: 'none',
-                    cursor: isChatting || !chatInput.trim() ? 'not-allowed' : 'pointer',
-                    fontWeight: 700,
-                    alignSelf: 'flex-end',
+                  <div className="select-text">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
+                      {explanation}
+                    </ReactMarkdown>
+                  </div>
+
+                  {/* ACTIVE TUTOR CHAT INPUT FOR CHAT BOT DIALOGUES */}
+                  <div className="border-t border-slate-100 pt-6">
+                    <h4 className="font-extrabold text-slate-700 text-xs tracking-wider uppercase mb-3 flex items-center gap-1.5">
+                      <MessageSquare className="w-4 h-4 text-sky-400" /> Continuous Classroom Discussion
+                    </h4>
+
+                    <div className="flex flex-col gap-2.5">
+                      {chatLog.map((msg, i) => (
+                        <div
+                          key={i}
+                          className={`p-4 rounded-xl text-sm leading-relaxed border border-solid select-text ${
+                            msg.role === 'user' 
+                              ? 'bg-slate-50 border-slate-200/80 text-slate-700 ml-4 md:ml-8' 
+                              : 'bg-sky-50/50 border-sky-100 text-slate-800 mr-4 md:mr-8'
+                          }`}
+                        >
+                          <span className={`block text-[10px] tracking-widest font-black uppercase mb-1.5 ${msg.role === 'user' ? 'text-slate-400' : 'text-sky-500'}`}>
+                            {msg.role === 'user' ? 'Student Inquiry' : 'AI Instructor'}
+                          </span>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
+                            {msg.content || '...'}
+                          </ReactMarkdown>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2 mt-4 bg-slate-100/80 p-2 rounded-xl border border-slate-200/60">
+                      <textarea
+                        ref={chatInputRef}
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={handleChatKeyDown}
+                        placeholder="Request direct topic advice or test-taking tips... (⌘ + Enter)"
+                        rows={2}
+                        className="flex-1 px-3 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium focus:outline-none focus:border-sky-400 resize-none font-sans"
+                      />
+                      <button
+                        onClick={handleAskFollowUp}
+                        disabled={isChatting || !chatInput.trim()}
+                        className={`w-14 items-center justify-center rounded-lg border-none text-white font-bold text-xs tracking-wide cursor-pointer transition-colors shrink-0 flex
+                          ${isChatting || !chatInput.trim() ? 'bg-slate-300 pointer-events-none' : 'bg-sky-500 hover:bg-sky-600'}
+                        `}
+                      >
+                        {isChatting ? '...' : 'Ask'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: FLASHCARD STUDY MODE PANEL */}
+          {activeMode === 'flashcard' && (
+            <div className="flex flex-col gap-6 items-center animate-fade-in">
+              <div className="text-center max-w-lg mb-2">
+                <h3 className="text-lg font-bold text-slate-800">Concept Active Recall Deck</h3>
+                <p className="text-xs text-slate-500 leading-normal mt-1">
+                  Read the pattern description below. Formulate your reasoning, then click to flip the card and check the optimal answer and full critique.
+                </p>
+              </div>
+
+              {/* CARD CONTAINER FLIP MODULE */}
+              <div 
+                className="w-full max-w-xl h-[420px] cursor-pointer group focus:outline-none"
+                style={{ perspective: '1000px' }}
+                onClick={() => setIsFlipped(!isFlipped)}
+                tabIndex={0}
+                onKeyDown={(e) => { if(e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setIsFlipped(!isFlipped); } }}
+              >
+                <div 
+                  className="relative w-full h-full text-center transition-transform duration-500 transform-style-3d select-none"
+                  style={{ 
+                    transform: isFlipped ? 'rotateY(180deg)' : 'none',
+                    transformStyle: 'preserve-3d'
                   }}
                 >
-                  {isChatting ? '…' : 'Ask'}
+                  
+                  {/* FRONT SIDE */}
+                  <div 
+                    className="absolute inset-0 bg-white rounded-2xl border-2 border-solid border-slate-200/80 shadow-md p-6 md:p-8 flex flex-col justify-between"
+                    style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                  >
+                    <div className="flex justify-between items-center text-xs font-bold text-slate-400">
+                      <span>FLASHCARD #{currentQuestion.question_number}</span>
+                      <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">Active Recall</span>
+                    </div>
+
+                    <div className="my-auto py-4 overflow-y-auto max-h-[220px]">
+                      <p className="text-sm md:text-base font-semibold text-slate-700 leading-relaxed text-left select-text">
+                        {currentQuestion.text}
+                      </p>
+                    </div>
+
+                    <div className="text-center font-bold text-sky-500 hover:text-sky-600 text-xs shrink-0 flex items-center justify-center gap-1 animate-pulse">
+                      <span>Click card or press Space to FLIP</span> <TrendingUp className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+
+                  {/* BACK SIDE */}
+                  <div 
+                    className="absolute inset-0 bg-slate-900 rounded-2xl text-white shadow-xl p-6 md:p-8 flex flex-col justify-between overflow-y-auto"
+                    style={{ 
+                      backfaceVisibility: 'hidden', 
+                      WebkitBackfaceVisibility: 'hidden',
+                      transform: 'rotateY(180deg)' 
+                    }}
+                    onClick={(e) => e.stopPropagation()} // stop parent toggle
+                  >
+                    <div className="flex justify-between items-center text-xs font-bold text-slate-500 border-b border-slate-800 pb-3">
+                      <span>ANSWER KEY & KEY TAKEAWAYS</span>
+                      <span className="bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded uppercase tracking-widest text-[9px] font-bold">Solutions Room</span>
+                    </div>
+
+                    {/* CORRECT ANSWER SUMMARY */}
+                    <div className="my-auto py-4 flex flex-col gap-3 text-left overflow-y-auto scrollbar-thin">
+                      <p className="text-xs text-slate-400 font-bold tracking-widest uppercase">Target Choices Reference</p>
+                      
+                      {Object.entries(currentQuestion.options).map(([key, val]) => (
+                        <div key={key} className="p-3 rounded-lg bg-slate-800/80 border border-slate-800 text-slate-300 text-xs leading-normal">
+                          <strong className="text-sky-400 mr-1.5">{key}.</strong> {val}
+                        </div>
+                      ))}
+
+                      {/* TUTOR TAKEAWAY */}
+                      {explanation ? (
+                        <div className="mt-4 p-4 rounded-xl bg-slate-800 border-l-4 border-sky-400 text-xs leading-relaxed select-text">
+                          <strong className="text-sky-400 block mb-1">AI Explanation Note:</strong>
+                          <div className="text-slate-300">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
+                              {explanation}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleCheckAnswer(); }}
+                          disabled={isStreaming || !selectedAnswer}
+                          className="mt-4 w-full p-2.5 bg-sky-500 text-xs hover:bg-sky-600 rounded-lg text-white font-bold border-none transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" /> Explain Concept of this Card
+                        </button>
+                      )}
+                    </div>
+
+                    <button 
+                      onClick={() => setIsFlipped(false)}
+                      className="text-center font-bold text-sky-400 hover:text-sky-300 text-xs transition-colors shrink-0 pt-3 border-t border-slate-800 flex items-center justify-center gap-1 cursor-pointer bg-none border-none bg-transparent"
+                    >
+                      Return to question front
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* CARD SELECTORS */}
+              <div className="flex gap-4 items-center mt-2.5 bg-white p-2.5 rounded-2xl border border-slate-200">
+                <button
+                  onClick={() => navigate(-1)}
+                  disabled={currentIndex === 0}
+                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl disabled:opacity-30 disabled:pointer-events-none transition-all border-none cursor-pointer"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-widest px-4">
+                  Card {currentIndex + 1} of {total}
+                </span>
+                <button
+                  onClick={() => navigate(1)}
+                  disabled={currentIndex === total - 1}
+                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl disabled:opacity-30 disabled:pointer-events-none transition-all border-none cursor-pointer"
+                >
+                  <ArrowRight className="w-5 h-5" />
                 </button>
               </div>
             </div>
           )}
+
+          {/* TAB 3: WORKSPACE PROGRESS DASHBOARD */}
+          {activeMode === 'dashboard' && (
+            <div className="flex flex-col gap-6 animate-fade-in text-slate-800">
+              
+              {/* PRIMARY VISUAL GAUGE GRID */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                
+                {/* SVG CIRCULAR ACCURACIES */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-md text-center flex flex-col items-center justify-center gap-3">
+                  <span className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Tackle Accuracy</span>
+                  <div className="relative w-28 h-28 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="56" cy="56" r="44" stroke="#f1f5f9" strokeWidth="10" fill="transparent" />
+                      <circle 
+                        cx="56" 
+                        cy="56" 
+                        r="44" 
+                        stroke="url(#accGrad)" 
+                        strokeWidth="10" 
+                        fill="transparent" 
+                        strokeDasharray={276.4}
+                        strokeDashoffset={276.4 - (276.4 * accuracyPct) / 100}
+                        strokeLinecap="round"
+                        className="transition-all duration-500"
+                      />
+                      <defs>
+                        <linearGradient id="accGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#38bdf8" />
+                          <stop offset="100%" stopColor="#10b981" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    <div className="absolute flex flex-col leading-none">
+                      <span className="text-2xl font-black text-slate-800">{accuracyPct}%</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-medium">Of attempted question patterns</p>
+                </div>
+
+                {/* ATTEMPT RATIOS */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-md flex flex-col justify-between gap-4">
+                  <div>
+                    <span className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-2">Pacing Log</span>
+                    <div className="flex justify-between items-baseline border-b border-slate-100 pb-2.5">
+                      <span className="text-xs text-slate-500 font-medium">Correct solutions</span>
+                      <span className="text-base font-extrabold text-emerald-500">{correct}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline border-b border-slate-100 py-2.5">
+                      <span className="text-xs text-slate-500 font-medium">Wrong attempts</span>
+                      <span className="text-base font-extrabold text-rose-500">{wrong}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline pt-2.5">
+                      <span className="text-xs text-slate-500 font-medium">Unattempted bank</span>
+                      <span className="text-base font-extrabold text-slate-400">{total - attempted}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ACTIVE RECOMMENDATIONS BOX */}
+                <div className="bg-gradient-to-br from-slate-900 to-indigo-950 p-6 rounded-2xl text-white shadow-lg flex flex-col justify-between gap-4">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-sky-400 tracking-widest block mb-1">AI Recommendation</span>
+                    <h4 className="text-sm font-bold text-white mb-2 leading-snug">Personalized Revision Focus</h4>
+                    <p className="text-xs text-slate-300 leading-normal font-medium">
+                      {wrong > 0 
+                        ? `You currently have ${wrong} incorrect question targets. We highly recommend reviewing them with follow-up chats before submitting more tests.`
+                        : "Outstanding work! All of your attempts are 100% correct. Select any unattempted questions from the list below to build your streak!"
+                      }
+                    </p>
+                  </div>
+
+                  {wrong > 0 && (
+                    <button 
+                      onClick={() => setReviewFilter('red')}
+                      className="py-2 text-center bg-rose-500 hover:bg-rose-600 rounded-lg text-white font-extrabold text-xs transition-all border-none cursor-pointer"
+                    >
+                      Audit {wrong} Errors Now
+                    </button>
+                  )}
+                </div>
+
+              </div>
+
+              {/* LIST DIRECTORIES INTEGRATION INSIDE DASHBOARD (ACTIVE RECALL LISTS) */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-md flex flex-col gap-4">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <h3 className="font-extrabold text-slate-800 text-sm tracking-wider uppercase flex items-center gap-1.5">
+                    <ListFilter className="w-4 h-4 text-sky-400" /> Syllabus Question Hub
+                  </h3>
+                  <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded leading-none">
+                    Select list item to jump to quiz
+                  </span>
+                </div>
+
+                <div className="max-h-[300px] overflow-y-auto pr-2 space-y-2 scrollbar-thin">
+                  {progress.map((item, idx) => {
+                    const qDetails = questions[idx];
+                    if(!qDetails) return null;
+
+                    const statusLabelsProps = {
+                      green: { text: "Optimal", textClass: "text-emerald-500 bg-emerald-50 border-emerald-100", dot: "bg-emerald-400" },
+                      red: { text: "Error Out", textClass: "text-rose-500 bg-rose-50 border-rose-100", dot: "bg-rose-400" },
+                      gray: { text: "Unsolved", textClass: "text-slate-400 bg-slate-50 border-slate-200/60", dot: "bg-slate-300" },
+                    };
+
+                    const sl = statusLabelsProps[item.status] || statusLabelsProps.gray;
+
+                    return (
+                      <div 
+                        key={item.question_id}
+                        onClick={() => {
+                          setCurrentIndex(idx);
+                          setActiveTab('practice');
+                        }}
+                        className="p-3 border border-slate-100 hover:border-sky-300 rounded-xl flex items-center justify-between gap-4 cursor-pointer transition-all hover:bg-slate-50/50"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-6 h-6 rounded-lg bg-sky-50 text-sky-600 font-extrabold text-xs flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          <p className="text-xs font-medium text-slate-700 truncate min-w-0">
+                            {qDetails.text}
+                          </p>
+                        </div>
+
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold border border-solid flex items-center gap-1 uppercase shrink-0 ${sl.textClass}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sl.dot}`}></span>
+                          {sl.text}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+          )}
+
         </div>
       </div>
 
-      {/* QUESTION GRID MATRIX (right rail navigator) */}
-      <div
-        style={{
-          width: '280px',
-          background: '#f8fafc',
-          borderLeft: '1px solid #e2e8f0',
-          padding: '28px 18px',
-          overflowY: 'auto',
-          flexShrink: 0,
-        }}
-      >
-        <h3 style={{ marginTop: 0, marginBottom: '18px', fontSize: '0.95rem', color: '#0f172a' }}>
-          Question Directory
-        </h3>
-        {Array.from({ length: Math.ceil(progress.length / 50) }).map((_, batchIdx) => (
-          <details key={batchIdx} style={{ marginBottom: '12px' }} open={batchIdx === 0}>
-            <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#475569', fontSize: '0.85rem' }}>
-              Q {batchIdx * 50 + 1} – {Math.min((batchIdx + 1) * 50, progress.length)}
-            </summary>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
-              {progress.slice(batchIdx * 50, (batchIdx + 1) * 50).map((item, idx) => {
-                const globalIdx = batchIdx * 50 + idx;
-                const isActive = currentIndex === globalIdx;
-                const statusColors = {
-                  green: { bg: '#f0fdf4', border: '#10b981', text: '#065f46' },
-                  red: { bg: '#fef2f2', border: '#ef4444', text: '#7f1d1d' },
-                  gray: { bg: '#fff', border: '#cbd5e1', text: '#0f172a' },
-                };
-                const sc = isActive
-                  ? { bg: '#0f172a', border: '#0f172a', text: '#fff' }
-                  : statusColors[item.status] || statusColors.gray;
+      {/* DESKTOP EXCLUSIVE RIGHT RAIL DIRECTORY SHEET */}
+      <div className={`
+        fixed inset-y-0 right-0 w-[280px] bg-white border-l border-slate-200 p-6 flex flex-col z-50 overflow-y-auto transition-transform duration-300 md:relative md:translate-x-0 shrink-0
+        ${directoryOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+      `}>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="font-extrabold text-sm text-slate-800 tracking-wider uppercase">Exam Navigation</h3>
+          <button onClick={() => setDirectoryOpen(false)} className="md:hidden p-1 rounded-lg hover:bg-slate-100">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
 
-                return (
-                  <button
-                    key={item.question_id}
-                    onClick={() => setCurrentIndex(globalIdx)}
-                    title={`Q ${item.question_number} — ${
-                      item.status === 'green' ? 'Correct' : item.status === 'red' ? 'Incorrect' : 'Not attempted'
-                    }`}
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '7px',
-                      border: `1.5px solid ${sc.border}`,
-                      background: sc.bg,
-                      color: sc.text,
-                      cursor: 'pointer',
-                      fontWeight: isActive ? '800' : '600',
-                      fontSize: '0.8rem',
-                      transition: 'transform 0.1s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    onMouseOver={(e) => (e.currentTarget.style.transform = 'scale(1.12)')}
-                    onMouseOut={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-                  >
-                    {item.question_number}
-                  </button>
-                );
-              })}
-            </div>
-          </details>
-        ))}
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {Array.from({ length: Math.ceil(progress.length / 50) }).map((_, batchIdx) => (
+            <details key={batchIdx} className="group border border-slate-200/50 rounded-xl overflow-hidden" open={batchIdx === 0}>
+              <summary className="cursor-pointer font-bold text-xs text-slate-500 p-3 hover:bg-slate-50/80 transition-colors flex justify-between items-center border-b border-slate-100 select-none">
+                <span>Quiz Q {batchIdx * 50 + 1} – {Math.min((batchIdx + 1) * 50, progress.length)}</span>
+                <span className="w-4 h-4 rounded bg-slate-100 text-[10px] text-center font-bold items-center justify-center hidden md:flex shrink-0">
+                  {progress.slice(batchIdx * 50, (batchIdx + 1) * 50).length}
+                </span>
+              </summary>
+              <div className="p-3 bg-slate-50/20 flex flex-wrap gap-1.5">
+                {progress.slice(batchIdx * 50, (batchIdx + 1) * 50).map((item, idx) => {
+                  const globalIdx = batchIdx * 50 + idx;
+                  const isActive = currentIndex === globalIdx;
+
+                  const colors = {
+                    green: { border: 'border-emerald-200', bg: 'bg-emerald-50 hover:bg-emerald-100/50', text: 'text-emerald-700' },
+                    red: { border: 'border-rose-200', bg: 'bg-rose-50 hover:bg-rose-100/50', text: 'text-rose-700' },
+                    gray: { border: 'border-slate-200', bg: 'bg-white hover:bg-slate-50', text: 'text-slate-700' },
+                  };
+
+                  const sc = isActive 
+                    ? { border: 'border-slate-800', bg: 'bg-slate-800', text: 'text-white' }
+                    : colors[item.status] || colors.gray;
+
+                  return (
+                    <button
+                      key={item.question_id}
+                      onClick={() => {
+                        setCurrentIndex(globalIdx);
+                        setDirectoryOpen(false);
+                      }}
+                      className={`w-9 h-9 text-xs font-bold rounded-lg border border-solid transition-all cursor-pointer flex items-center justify-center shadow-sm shrink-0 ${sc.border} ${sc.bg} ${sc.text}`}
+                      title={`Q ${item.question_number} — ${item.status}`}
+                    >
+                      {item.question_number}
+                    </button>
+                  );
+                })}
+              </div>
+            </details>
+          ))}
+        </div>
       </div>
 
-      {/* FILTER AUDIT POPUPS / MODALS */}
+      {/* FILTER Popups */}
       {reviewFilter && (
         <ReviewModal
           questions={questions}
@@ -972,6 +1053,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
           onNavigate={(idx) => setCurrentIndex(idx)}
         />
       )}
+
     </div>
   );
 }
