@@ -96,6 +96,36 @@ promptpass/
 
 ---
 
+## 📸 App Workspace Showcase
+
+Deploying or hosting PromptPass? Check out the elegant dark-themed study workspace:
+
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <b>🌌 Core Study Dashboard</b><br/>
+      <sub>Beautiful slate and neon-cyan controls, questions view, keyboard shortcut guides, and real-time statistics counters.</sub><br/><br/>
+      <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80" width="100%" style="border-radius: 8px; border: 1px solid #334155;" alt="PromptPass Study Dashboard Dashboard" referrerPolicy="no-referrer" />
+    </td>
+    <td width="50%" align="center">
+      <b>💬 Active Recall AI Chat Tutor</b><br/>
+      <sub>Highlight tough questions and initiate multi-turn chats directly referencing code logic, explanations, and core insights.</sub><br/><br/>
+      <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80" width="100%" style="border-radius: 8px; border: 1px solid #334155;" alt="PromptPass AI Chat Tutor" referrerPolicy="no-referrer" />
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <b>🛡️ Intelligent Quota Controls & Dynamic Model Sidebar</b><br/>
+      <sub>Swap between Gemini 3.5 Flash, 3.1 Pro, and high-volume Flash Lite on the fly, with native rate-limit fallback.</sub><br/><br/>
+      <img src="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1200&q=80" width="90%" style="border-radius: 8px; border: 1px solid #334155;" alt="Intelligent Sidebar & Model Settings" referrerPolicy="no-referrer" />
+    </td>
+  </tr>
+</table>
+
+---
+
+---
+
 ## 🤝 Contributing & License
 
 PromptPass is licensed under the terms of the [MIT License](LICENSE). Contributions, bug reports, and suggestions are always welcome! Feel free to fork or suggest updates.
