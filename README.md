@@ -1,6 +1,16 @@
-# PromptPass
+# PromptPass (Release 1.0.0)
 
 PromptPass is an AI-powered certification learning room and interactive tutor workspace migrated to a React + Express.js TypeScript Full-stack architecture, running with Google GenAI capabilities.
+
+## 🎉 Release 1.0.0 Features & Enhancements
+
+Key features shipped in **Release 1**:
+*   **Aesthetic Page Number Filtering**: Strips cluttering headers/footers (e.g. "-- Page 12 of 150 --") from parsed question and option texts so you see only clean content.
+*   **Structured AI Evaluations**: Correct answers give only a concise confirmation (few words); incorrect answers display the right code clearly and explain why succinctly.
+*   **Response Persistence**: AI evaluation replies are saved directly to the database mapped across your specific device workspace, preserving explanations across page reloads.
+*   **Robust iPad & Tablet Responsiveness**: Optimized sidebar breakpoints (`lg`) convert desktop layouts into elegant off-canvas sliders, avoiding squeezed center columns on modern tablets.
+*   **Strict Device Isolation**: Different physical devices or browsers stay completely independent. PDF uploads on Phone 1 won't leak or affect tablet/laptop progress.
+
 
 ## 🎨 Visual Identity & Aesthetic Selection
 
