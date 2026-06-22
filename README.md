@@ -25,6 +25,8 @@ PromptPass is an AI-powered certification learning room and interactive tutor wo
 ## 🛠 Full-Stack Architecture
 
 *   **Frontend Client**: React (v19) running standard SPA, leveraging custom styled components, `react-markdown` for typography parsers, and custom Event-Stream reader pipelines.
+*   **Offline Mode & Resilience**: Features a rich offline review engine matching custom localStorage structures. When network drops, users can freely browse questions, solve pattern options, examine active recall flashcards, and navigate the syllabus freely with locally cached study plans (`src/offlineCache.ts`).
 *   **Backend Server**: Express.js compiling smoothly to a self-contained production bundle using `esbuild` (`dist/server.cjs`).
 *   **Reliable Database Store**: JSON-based file module (`src/db.json` cache) that operates on the fly. Free from native binding errors, highly performant, and persistent.
-*   **Google GenAI SDK**: Implements the official `@google/genai` TypeScript SDK using `gemini-3.5-flash` for streaming tutoring, minimizing latency.
+*   **Google GenAI SDK**: Implements the official `@google/genai` TypeScript SDK using `gemini-3.5-flash` with optimized structured schema constraints for error-free parsing and streaming tutoring.
+

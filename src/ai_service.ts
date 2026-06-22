@@ -67,9 +67,22 @@ Instructions:
                 description: 'The core text of the question prompt.'
               },
               options: {
-                type: Type.OBJECT,
-                description: 'The select choices map. Key is the choice letter (e.g. A, B, C, D), value is the choice description.',
-                properties: {}
+                type: Type.ARRAY,
+                description: 'The selectable multiple-choice options.',
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    key: {
+                      type: Type.STRING,
+                      description: 'The identifier for the option, e.g., "A", "B", "C", "D".'
+                    },
+                    value: {
+                      type: Type.STRING,
+                      description: 'The text value or description of the option.'
+                    }
+                  },
+                  required: ['key', 'value']
+                }
               }
             },
             required: ['question_number', 'text', 'options']
@@ -84,7 +97,29 @@ Instructions:
       return [];
     }
 
-    const parsed = JSON.parse(text) as ExtractedQuestion[];
+    interface RawExtractedQuestion {
+      question_number: number;
+      text: string;
+      options: { key: string; value: string }[];
+    }
+
+    const tempParsed = JSON.parse(text) as RawExtractedQuestion[];
+    const parsed: ExtractedQuestion[] = tempParsed.map(q => {
+      const optionsRecord: Record<string, string> = {};
+      if (Array.isArray(q.options)) {
+        q.options.forEach(opt => {
+          if (opt && opt.key) {
+            optionsRecord[opt.key] = opt.value || '';
+          }
+        });
+      }
+      return {
+        question_number: q.question_number,
+        text: q.text,
+        options: optionsRecord
+      };
+    });
+
     console.log(`[AI SERVICE] Successfully parsed ${parsed.length} questions using Gemini.`);
     return parsed;
   } catch (err: any) {
