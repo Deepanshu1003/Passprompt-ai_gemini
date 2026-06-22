@@ -82,3 +82,64 @@ export function isUserOnline(): boolean {
   }
   return true;
 }
+
+const DEVICE_ID_KEY = 'promptpass_device_id';
+const DEVICE_NAME_KEY = 'promptpass_device_name';
+
+/**
+ * Retrieves or creates a resilient device UUID
+ */
+export function getOrCreateDeviceId(): string {
+  try {
+    let id = localStorage.getItem(DEVICE_ID_KEY);
+    if (!id) {
+      // Generate standard user friendly device tag (e.g. DEV_XYZ123)
+      id = 'DEV_' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      localStorage.setItem(DEVICE_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return 'DEV_UNKNOWN';
+  }
+}
+
+/**
+ * Updates the local device identifier (enables device-workspace bridging/pairing)
+ */
+export function setDeviceId(id: string): void {
+  try {
+    localStorage.setItem(DEVICE_ID_KEY, id.trim());
+  } catch {}
+}
+
+/**
+ * Retrieves the descriptive label for the active device
+ */
+export function getDeviceName(): string {
+  try {
+    const name = localStorage.getItem(DEVICE_NAME_KEY);
+    if (name) return name;
+    
+    let guessed = 'Web Workspace';
+    if (typeof navigator !== 'undefined') {
+      const ua = navigator.userAgent.toLowerCase();
+      if (/iphone|ipad|ipod/.test(ua)) guessed = 'iOS Device';
+      else if (/android/.test(ua)) guessed = 'Android Mobile';
+      else if (/mobile|touch/.test(ua)) guessed = 'Mobile Device';
+      else if (/macintosh/.test(ua)) guessed = 'Mac Computer';
+      else if (/windows/.test(ua)) guessed = 'Windows PC';
+    }
+    return guessed;
+  } catch {
+    return 'Primary Device';
+  }
+}
+
+/**
+ * Updates the user-defined active device name
+ */
+export function setDeviceName(name: string): void {
+  try {
+    localStorage.setItem(DEVICE_NAME_KEY, name.trim());
+  } catch {}
+}

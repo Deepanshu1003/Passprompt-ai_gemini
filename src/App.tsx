@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react';
 import PracticeSession from './components/PracticeSession';
 import { ExamPlan } from './types';
 import { BookOpen, Trash2, ArrowUpRight, FolderHeart, PlusCircle, Sparkles, WifiOff } from 'lucide-react';
-import { cachePlans, getCachedPlans } from './offlineCache';
+import { 
+  cachePlans, 
+  getCachedPlans, 
+  getOrCreateDeviceId, 
+  getDeviceName, 
+  setDeviceName, 
+  setDeviceId 
+} from './offlineCache';
 
 // The PromptPass Logo: Fusion of Brain (Mind/AI) and Book (Knowledge)
 export const AppLogo = () => (
@@ -42,9 +49,19 @@ export default function App() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [usingCache, setUsingCache] = useState(false);
 
+  // Device-based Session Workspace State
+  const [deviceId, setDeviceIdState] = useState<string>('');
+  const [deviceName, setDeviceNameState] = useState<string>('');
+  const [showDeviceSettings, setShowDeviceSettings] = useState<boolean>(false);
+
   const fetchPlans = async () => {
     try {
-      const res = await fetch('/api/plans');
+      const currentId = getOrCreateDeviceId();
+      const res = await fetch('/api/plans', {
+        headers: {
+          'x-device-id': currentId
+        }
+      });
       if (res.ok) {
         const list = await res.json();
         setPlans(list);
@@ -62,6 +79,8 @@ export default function App() {
   };
 
   useEffect(() => {
+    setDeviceIdState(getOrCreateDeviceId());
+    setDeviceNameState(getDeviceName());
     fetchPlans();
   }, []);
 
@@ -88,6 +107,9 @@ export default function App() {
     try {
       const response = await fetch('/api/upload', {
         method: 'POST',
+        headers: {
+          'x-device-id': getOrCreateDeviceId()
+        },
         body: formData,
       });
 
@@ -128,7 +150,12 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`/api/plans/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/plans/${id}`, { 
+        method: 'DELETE',
+        headers: {
+          'x-device-id': getOrCreateDeviceId()
+        }
+      });
       if (res.ok) {
         fetchPlans();
         if (activePlanId === id) {
@@ -167,12 +194,82 @@ export default function App() {
             </span>
           </div>
         </div>
-        <div className="text-right hidden sm:block">
-          <span className="inline-block bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider">
-            AI Tutor Companion
-          </span>
+        
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowDeviceSettings(!showDeviceSettings)}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 hover:border-slate-600 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 transition-all cursor-pointer"
+            title="Manage device workspace settings"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
+            <span>Workspace: {deviceName || 'Generic'} ({deviceId})</span>
+          </button>
+          
+          <div className="text-right hidden sm:block">
+            <span className="inline-block bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider">
+              AI Tutor Companion
+            </span>
+          </div>
         </div>
       </nav>
+
+      {/* DEVICE WORKSPACE MANAGER DRAWER / BAR */}
+      {showDeviceSettings && (
+        <div className="bg-slate-850 text-slate-100 border-b border-slate-700/60 p-5 shadow-inner animate-fade-in">
+          <div className="max-w-5xl mx-auto w-full flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="max-w-lg">
+              <h4 className="font-bold text-slate-200 text-xs sm:text-sm mb-1 flex items-center gap-1.5">
+                <span>🔒 Device Isolation & Cross-Device Sync</span>
+              </h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                By default, PromptPass isolates your study workspaces to your current active browser/device. 
+                Want to link your mobile phone, tablet, or another browser? Simply enter the same <strong>Workspace ID</strong> below to instantly pair and synchronize all patterns and progress!
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap items-end gap-3 shrink-0">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Workspace ID (Device Key)</span>
+                <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-2 rounded-xl">
+                  <span className="text-xs font-mono font-bold text-emerald-400">{deviceId}</span>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const newId = prompt("Enter a new Workspace ID to switch workspaces or pair this browser with another device:", deviceId);
+                      if (newId && newId.trim()) {
+                        const trimmed = newId.trim().toUpperCase();
+                        setDeviceId(trimmed);
+                        setDeviceIdState(trimmed);
+                        setTimeout(() => {
+                          fetchPlans();
+                        }, 50);
+                      }
+                    }}
+                    className="text-[10px] bg-sky-600 hover:bg-sky-500 text-white font-bold px-2 py-1 rounded-lg transition-all border-none cursor-pointer"
+                  >
+                    Sync / Swap
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Device Custom Label</span>
+                <input
+                  type="text"
+                  value={deviceName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDeviceNameState(val);
+                    setDeviceName(val);
+                  }}
+                  className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-100 outline-none focus:border-sky-500 w-36"
+                  placeholder="e.g. My Laptop"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DASHBOARD HERO CONTAINER */}
       <div className="flex-grow max-w-5xl mx-auto w-full px-4 py-8 sm:py-12 flex flex-col gap-10">

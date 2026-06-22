@@ -43,7 +43,7 @@ Instructions:
 1. Find all questions and extract them in sequential order.
 2. For each question, extract the question number, the prompt/content text of the question, and the list of options.
 3. The options MUST be returned as a key-value object of strings (like {"A": "First choice description...", "B": "Second choice description..."}).
-4. Keep the question prompts verbatim and cleanly formatted.
+4. Keep the question prompts verbatim and cleanly formatted. Strip out any trailing or leading Page Numbers (e.g. "Page 15 of 200", "page no. 5") or document headers/footers completely. Do NOT let page numbers bleed into the text or options.
 5. If some questions don't have multiple choice options (e.g., they are open text), represent options as empty or {"TEXT": "Write your text response here."}.
 6. Ensure that the returned output strictly complies with the JSON format schema. Do not skip any questions.`;
 
@@ -149,19 +149,23 @@ ${selectedAnswer}
 
 Instructions:
 
-1. Determine whether the answer is correct.
+1. Determine whether the answer is correct or incorrect.
 2. Start your response EXACTLY with:
 
 GRADE: CORRECT
 
-OR
+(if correct)
+OR:
 
 GRADE: INCORRECT
 
-3. Explain the reasoning.
-4. Explain why other options are incorrect.
-5. Mention the key concept tested.
-6. Give one exam-preparation tip.
+(if incorrect)
+
+3. Format the evaluation response according to the grade:
+   - If the answer is CORRECT:
+     Provide only a very brief summary/confirmation in just a few words (max 15-20 words). Keep it extremely concise (e.g., "Correct! Excellent understanding of the concept."). Do NOT write any structured detailed sections, redundant explanations, or tips.
+   - If the answer is INCORRECT:
+     Clearly identify the correct option (e.g., "The correct answer is B.") and expand in just a few words explaining why (max 50 words). Keep it digestible and direct.
 
 Use Markdown formatting.`;
 

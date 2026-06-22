@@ -30,3 +30,10 @@ PromptPass is an AI-powered certification learning room and interactive tutor wo
 *   **Reliable Database Store**: JSON-based file module (`src/db.json` cache) that operates on the fly. Free from native binding errors, highly performant, and persistent.
 *   **Google GenAI SDK**: Implements the official `@google/genai` TypeScript SDK using `gemini-3.5-flash` with optimized structured schema constraints for error-free parsing and streaming tutoring.
 
+## 📱 Responsiveness & Device Isolation Upgrades
+
+*   **iPad & Tablet Optimizations**: Sidebars automatically convert into off-canvas sliding drawers on portrait/landscape tablet screens (using the upgraded `lg` breakpoint), protecting the middle canvas from being squeezed down and giving you ample space to read and answer.
+*   **Aesthetic Page Number Filters**: A robust deterministic and fallback AI parser regex cleanly strips page footers and headers (e.g. `-- 3 of 249 --`) to keep questions and options short, beautiful, and distraction-free.
+*   **Strict Device Workspace Isolation**: All documents, session activities, and progress metrics are fully sandboxed using secure, random device-state identifiers, ensuring that uploading a PDF on Phone 1 will not affect or pollute other paired or separate devices.
+
+

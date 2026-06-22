@@ -25,7 +25,8 @@ import {
   cacheQuestions, 
   getCachedQuestions, 
   cacheProgress, 
-  getCachedProgress 
+  getCachedProgress,
+  getOrCreateDeviceId
 } from '../offlineCache';
 
 const MarkdownComponents = {
@@ -197,11 +198,36 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
 
   const fetchProgress = useCallback(async () => {
     try {
-      const res = await fetch(`/api/plans/${planId}/progress`);
+      const res = await fetch(`/api/plans/${planId}/progress`, {
+        headers: {
+          'x-device-id': getOrCreateDeviceId()
+        }
+      });
       if (res.ok) {
         const data = await res.json();
         setProgress(data);
         cacheProgress(planId, data);
+        
+        if (Array.isArray(data)) {
+          setQuestionAnswers((prev) => {
+            const next = { ...prev };
+            data.forEach((item) => {
+              if (item.question_id) {
+                next[item.question_id] = item.selected_answer;
+              }
+            });
+            return next;
+          });
+          setQuestionExplanations((prev) => {
+            const next = { ...prev };
+            data.forEach((item) => {
+              if (item.question_id) {
+                next[item.question_id] = item.explanation;
+              }
+            });
+            return next;
+          });
+        }
       } else {
         throw new Error('Progress fetch failed');
       }
@@ -210,6 +236,27 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
       const cached = getCachedProgress(planId);
       setProgress(cached);
       setOfflineActive(true);
+      
+      if (Array.isArray(cached)) {
+        setQuestionAnswers((prev) => {
+          const next = { ...prev };
+          cached.forEach((item) => {
+            if (item.question_id) {
+              next[item.question_id] = item.selected_answer;
+            }
+          });
+          return next;
+        });
+        setQuestionExplanations((prev) => {
+          const next = { ...prev };
+          cached.forEach((item) => {
+            if (item.question_id) {
+              next[item.question_id] = item.explanation;
+            }
+          });
+          return next;
+        });
+      }
     }
   }, [planId]);
 
@@ -234,7 +281,11 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
 
     const loadQuestionsAndProgress = async () => {
       try {
-        const res = await fetch(`/api/plans/${planId}/questions`);
+        const res = await fetch(`/api/plans/${planId}/questions`, {
+          headers: {
+            'x-device-id': getOrCreateDeviceId()
+          }
+        });
         if (res.ok) {
           const qs = await res.json();
           setQuestions(qs);
@@ -315,7 +366,10 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
     try {
       const response = await fetch('/api/evaluate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-device-id': getOrCreateDeviceId()
+        },
         body: JSON.stringify({ question_id: q.id, selected_answer: selectedAnswer }),
       });
 
@@ -483,7 +537,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
     <div className="flex h-screen w-screen font-sans bg-slate-100 overflow-hidden text-slate-900 select-none">
       
       {/* MOBILE HEADER BAR */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 text-white flex items-center justify-between px-4 z-40 shadow-md">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 text-white flex items-center justify-between px-4 z-40 shadow-md">
         <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-slate-800 rounded-lg">
           <Menu className="w-6 h-6" />
         </button>
@@ -498,7 +552,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
 
       {/* DETAILED SIDEBAR DESKTOP VIEW */}
       <div className={`
-        fixed inset-y-0 left-0 w-[280px] bg-slate-900 text-white flex flex-col z-50 p-6 overflow-y-auto transition-transform duration-300 md:relative md:translate-x-0
+        fixed inset-y-0 left-0 w-[280px] bg-slate-900 text-white flex flex-col z-50 p-6 overflow-y-auto transition-transform duration-300 lg:relative lg:translate-x-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex items-center justify-between mb-8">
@@ -506,7 +560,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
             <AppLogo />
             <h1 className="text-xl font-black text-white tracking-tight">PromptPass</h1>
           </div>
-          <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1.5 hover:bg-slate-800 rounded-lg">
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5 hover:bg-slate-800 rounded-lg">
             <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
@@ -595,10 +649,10 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
       </div>
 
       {/* MAIN CONTENT SCREEN AREA */}
-      <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto pt-16 md:pt-0">
+      <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto pt-16 lg:pt-0">
         
         {/* DESKTOP HEADER ACTION CONTROL ROW */}
-        <div className="hidden md:flex h-14 border-b border-slate-200 bg-white items-center justify-between px-8">
+        <div className="hidden lg:flex h-14 border-b border-slate-200 bg-white items-center justify-between px-8">
           <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
             <span>Workspace: <strong className="text-slate-800">{currentQuestion.text ? `Quiz Pattern #${currentQuestion.question_number}` : ""}</strong></span>
             <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
@@ -1056,12 +1110,12 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
 
       {/* DESKTOP EXCLUSIVE RIGHT RAIL DIRECTORY SHEET */}
       <div className={`
-        fixed inset-y-0 right-0 w-[280px] bg-white border-l border-slate-200 p-6 flex flex-col z-50 overflow-y-auto transition-transform duration-300 md:relative md:translate-x-0 shrink-0
-        ${directoryOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+        fixed inset-y-0 right-0 w-[280px] bg-white border-l border-slate-200 p-6 flex flex-col z-50 overflow-y-auto transition-transform duration-300 lg:relative lg:translate-x-0 shrink-0
+        ${directoryOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-extrabold text-sm text-slate-800 tracking-wider uppercase">Exam Navigation</h3>
-          <button onClick={() => setDirectoryOpen(false)} className="md:hidden p-1 rounded-lg hover:bg-slate-100">
+          <button onClick={() => setDirectoryOpen(false)} className="lg:hidden p-1 rounded-lg hover:bg-slate-100">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
@@ -1071,7 +1125,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
             <details key={batchIdx} className="group border border-slate-200/50 rounded-xl overflow-hidden" open={batchIdx === 0}>
               <summary className="cursor-pointer font-bold text-xs text-slate-500 p-3 hover:bg-slate-50/80 transition-colors flex justify-between items-center border-b border-slate-100 select-none">
                 <span>Quiz Q {batchIdx * 50 + 1} – {Math.min((batchIdx + 1) * 50, progress.length)}</span>
-                <span className="w-4 h-4 rounded bg-slate-100 text-[10px] text-center font-bold items-center justify-center hidden md:flex shrink-0">
+                <span className="w-4 h-4 rounded bg-slate-100 text-[10px] text-center font-bold items-center justify-center hidden lg:flex shrink-0">
                   {progress.slice(batchIdx * 50, (batchIdx + 1) * 50).length}
                 </span>
               </summary>

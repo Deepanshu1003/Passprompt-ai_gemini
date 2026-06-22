@@ -24,6 +24,7 @@ app.use(express.json());
 app.post('/api/upload', upload.single('question_bank'), async (req: Request, res: Response) => {
   const planTitle = req.body.plan_title;
   const file = req.file;
+  const deviceId = req.headers['x-device-id'] as string | undefined;
 
   if (!planTitle || !file) {
     res.status(400).json({ detail: 'plan_title and question_bank file are required.' });
@@ -51,8 +52,8 @@ app.post('/api/upload', upload.single('question_bank'), async (req: Request, res
       return;
     }
 
-    // Create a new ExamPlan
-    const plan = await dbStore.createPlan(planTitle);
+    // Create a new ExamPlan with device isolation
+    const plan = await dbStore.createPlan(planTitle, deviceId);
 
     // Save questions
     const questionsToInsert = extracted.map(q => ({
@@ -82,7 +83,8 @@ app.post('/api/upload', upload.single('question_bank'), async (req: Request, res
 
 app.get('/api/plans', async (req: Request, res: Response) => {
   try {
-    const plans = await dbStore.getPlans();
+    const deviceId = req.headers['x-device-id'] as string | undefined;
+    const plans = await dbStore.getPlans(deviceId);
     res.json(plans);
   } catch (err) {
     res.status(500).json({ detail: 'Failed to retrieve plans' });
@@ -91,7 +93,8 @@ app.get('/api/plans', async (req: Request, res: Response) => {
 
 app.get('/api/plans/:plan_id', async (req: Request, res: Response) => {
   try {
-    const plan = await dbStore.getPlan(req.params.plan_id);
+    const deviceId = req.headers['x-device-id'] as string | undefined;
+    const plan = await dbStore.getPlan(req.params.plan_id, deviceId);
     if (!plan) {
       res.status(404).json({ detail: 'Plan not found' });
       return;
@@ -122,8 +125,9 @@ app.get('/api/plans/:plan_id/questions', async (req: Request, res: Response) => 
 
 app.get('/api/plans/:plan_id/progress', async (req: Request, res: Response) => {
   try {
+    const deviceId = req.headers['x-device-id'] as string | undefined;
     const questions = await dbStore.getQuestions(req.params.plan_id);
-    const attempts = await dbStore.getAttempts(req.params.plan_id);
+    const attempts = await dbStore.getAttempts(req.params.plan_id, deviceId);
 
     const attemptsMap = new Map();
     for (const a of attempts) {
@@ -139,7 +143,9 @@ app.get('/api/plans/:plan_id/progress', async (req: Request, res: Response) => {
       return {
         question_id: q.id,
         question_number: q.question_number,
-        status: status
+        status: status,
+        selected_answer: att ? att.selected_answer : undefined,
+        explanation: att ? att.explanation : undefined
       };
     });
 
@@ -151,6 +157,7 @@ app.get('/api/plans/:plan_id/progress', async (req: Request, res: Response) => {
 
 app.post('/api/evaluate', async (req: Request, res: Response) => {
   const { question_id, selected_answer } = req.body;
+  const deviceId = req.headers['x-device-id'] as string | undefined;
   
   if (!question_id || !selected_answer) {
     res.status(400).json({ detail: 'question_id and selected_answer are required' });
@@ -159,7 +166,7 @@ app.post('/api/evaluate', async (req: Request, res: Response) => {
 
   try {
     // Find the question first
-    const plans = await dbStore.getPlans();
+    const plans = await dbStore.getPlans(deviceId);
     let question = null;
     for (const p of plans) {
       const qs = await dbStore.getQuestions(p.id);
@@ -197,7 +204,8 @@ app.post('/api/evaluate', async (req: Request, res: Response) => {
       question_id: question.id,
       selected_answer: selected_answer,
       is_correct: isCorrect,
-      explanation: fullResponseText
+      explanation: fullResponseText,
+      device_id: deviceId
     });
 
     res.end();

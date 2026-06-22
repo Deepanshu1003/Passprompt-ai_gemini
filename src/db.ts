@@ -6,6 +6,7 @@ export interface ExamPlan {
   id: string;
   title: string;
   created_at: string;
+  device_id?: string;
 }
 
 export interface Question {
@@ -23,6 +24,7 @@ export interface UserAttempt {
   is_correct: boolean;
   explanation: string;
   attempted_at: string;
+  device_id?: string;
 }
 
 interface DatabaseSchema {
@@ -58,22 +60,29 @@ async function saveDb(): Promise<void> {
 }
 
 export const dbStore = {
-  getPlans: async (): Promise<ExamPlan[]> => {
+  getPlans: async (deviceId?: string): Promise<ExamPlan[]> => {
     const db = await loadDb();
-    return db.plans;
+    if (!deviceId) return [];
+    return db.plans.filter(p => p.device_id === deviceId);
   },
   
-  getPlan: async (id: string): Promise<ExamPlan | null> => {
+  getPlan: async (id: string, deviceId?: string): Promise<ExamPlan | null> => {
     const db = await loadDb();
-    return db.plans.find(p => p.id === id) || null;
+    const plan = db.plans.find(p => p.id === id);
+    if (!plan) return null;
+    if (!deviceId || plan.device_id !== deviceId) {
+      return null;
+    }
+    return plan;
   },
 
-  createPlan: async (title: string): Promise<ExamPlan> => {
+  createPlan: async (title: string, deviceId?: string): Promise<ExamPlan> => {
     const db = await loadDb();
     const newPlan: ExamPlan = {
       id: crypto.randomUUID(),
       title,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      device_id: deviceId
     };
     db.plans.push(newPlan);
     await saveDb();
@@ -117,18 +126,22 @@ export const dbStore = {
     return inserted;
   },
 
-  getAttempts: async (planId: string): Promise<UserAttempt[]> => {
+  getAttempts: async (planId: string, deviceId?: string): Promise<UserAttempt[]> => {
     const db = await loadDb();
     const planQuestionsIndex = new Set(
       db.questions.filter(q => q.exam_plan_id === planId).map(q => q.id)
     );
-    return db.attempts.filter(a => planQuestionsIndex.has(a.question_id));
+    const planAttempts = db.attempts.filter(a => planQuestionsIndex.has(a.question_id));
+    if (!deviceId) return [];
+    return planAttempts.filter(a => a.device_id === deviceId);
   },
 
-  saveAttempt: async (attempt: Omit<UserAttempt, 'id' | 'attempted_at'>): Promise<UserAttempt> => {
+  saveAttempt: async (attempt: Omit<UserAttempt, 'id' | 'attempted_at'> & { device_id?: string }): Promise<UserAttempt> => {
     const db = await loadDb();
-    // Unique check by question_id (delete old, save new)
-    db.attempts = db.attempts.filter(a => a.question_id !== attempt.question_id);
+    // Unique check by question_id and device_id
+    db.attempts = db.attempts.filter(
+      a => !(a.question_id === attempt.question_id && a.device_id === attempt.device_id)
+    );
     
     const newAttempt: UserAttempt = {
       ...attempt,

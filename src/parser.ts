@@ -138,12 +138,14 @@ export function parseQuestionsFromText(fullText: string): ExtractedQuestion[] {
     const optionsPattern = /(?:\s|\n|\r)+([A-F])[\.\)]\s+/i;
     const parts = qBlock.split(optionsPattern);
 
-    const questionText = parts[0].trim().replace(/\x00/g, '');
+    const pageCleanup = /(?:--|-|\[)?\s*\d+\s+(?:of|OF)\s+\d+\s*(?:--|-|\])?|\b(?:page|Page|PAGE|pg\.?|Pg\.?)\s*(?:no|num|number|#)?\.?\s*\d+\s*(?:of\s*\d+)?\b/gi;
+    const questionText = parts[0].trim().replace(/\x00/g, '').replace(pageCleanup, '').trim().replace(/--\s*$/, '').trim();
     const options: Record<string, string> = {};
 
     for (let j = 1; j < parts.length; j += 2) {
       const optionLetter = parts[j]?.trim().toUpperCase();
-      const optionVal = parts[j + 1]?.trim().replace(/\x00/g, '') || '';
+      let optionVal = parts[j + 1]?.trim().replace(/\x00/g, '') || '';
+      optionVal = optionVal.replace(pageCleanup, '').replace(/--\s*$/, '').replace(/\s+/g, ' ').trim();
       if (optionLetter) {
         options[optionLetter] = optionVal;
       }
