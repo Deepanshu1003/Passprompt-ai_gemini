@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import PracticeSession from './components/PracticeSession';
+import InterviewPrep from './components/InterviewPrep';
 import { ExamPlan } from './types';
-import { BookOpen, Trash2, ArrowUpRight, FolderHeart, PlusCircle, Sparkles, WifiOff } from 'lucide-react';
+import { BookOpen, Trash2, ArrowUpRight, FolderHeart, PlusCircle, Sparkles, WifiOff, Briefcase, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { 
   cachePlans, 
   getCachedPlans, 
@@ -117,6 +118,7 @@ export const AppLogo = () => (
 );
 
 export default function App() {
+  const [screenMode, setScreenMode] = useState<'home' | 'exam' | 'interview'>('home');
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [plans, setPlans] = useState<ExamPlan[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -244,6 +246,108 @@ export default function App() {
     }
   };
 
+  if (screenMode === 'interview') {
+    return (
+      <InterviewPrep
+        onBackToHome={() => setScreenMode('home')}
+      />
+    );
+  }
+
+  if (screenMode === 'home') {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans select-none items-center justify-center p-6 relative overflow-hidden">
+        {/* Soft atmospheric background lights */}
+        <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-sky-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        
+        <div className="max-w-4xl w-full flex flex-col items-center gap-10 z-10">
+          {/* Logo element header space */}
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-650 flex items-center justify-center shadow-lg shadow-sky-500/20">
+              <Sparkles className="w-8 h-8 text-white animate-pulse" />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase flex items-center justify-center gap-1.5">
+                PromptPass
+                <span className="text-xs px-2 py-1 rounded bg-sky-500/10 border border-sky-500/30 text-sky-400 font-mono tracking-widest uppercase">V2.0</span>
+              </h1>
+              <p className="text-xs md:text-sm text-slate-400 font-semibold max-w-md mx-auto mt-3 leading-relaxed">
+                Adaptive preparation environments tailored for enterprise certification exams and professional placements.
+              </p>
+            </div>
+          </div>
+
+          {/* DUAL OPTION SELECTION CONTAINER */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+            {/* OPTION A: EXAM CERTIFICATION SUITE */}
+            <button
+              onClick={() => {
+                setScreenMode('exam');
+                fetchPlans(); // Refresh lists.
+              }}
+              className="group p-8 rounded-3xl bg-slate-800/60 border-2 border-slate-700/80 hover:border-sky-400 text-left transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-sky-500/10 cursor-pointer flex flex-col justify-between min-h-[300px] relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-[120px] h-[120px] bg-sky-500/5 rounded-full blur-[40px] pointer-events-none transition-all group-hover:bg-sky-500/10"></div>
+              
+              <div className="flex flex-col gap-5">
+                <div className="p-4 bg-sky-500/10 text-sky-400 rounded-2xl w-fit group-hover:bg-sky-500 group-hover:text-white transition-all duration-300">
+                  <GraduationCap className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-xl md:text-2xl font-black text-white group-hover:text-sky-400 transition-colors">
+                    Exam Certification Suite
+                  </h3>
+                  <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mt-2.5 font-medium">
+                    Upload practice banks or syllabus notes to formulate adaptive classrooms. Supports single/multi-select option routing, feedback logs, and review rooms.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-sky-400 group-hover:text-sky-300 pt-6">
+                <span>Configure & Begin Prep Rooms</span>
+                <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1.5 transition-transform" />
+              </div>
+            </button>
+
+            {/* OPTION B: AI INTERVIEW SUITE */}
+            <button
+              onClick={() => {
+                setScreenMode('interview');
+              }}
+              className="group p-8 rounded-3xl bg-slate-800/60 border-2 border-slate-700/80 hover:border-indigo-400 text-left transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-indigo-500/10 cursor-pointer flex flex-col justify-between min-h-[300px] relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-[120px] h-[120px] bg-indigo-500/5 rounded-full blur-[40px] pointer-events-none transition-all group-hover:bg-indigo-500/10"></div>
+              
+              <div className="flex flex-col gap-5">
+                <div className="p-4 bg-indigo-500/10 text-indigo-400 rounded-2xl w-fit group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300">
+                  <Briefcase className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-xl md:text-2xl font-black text-white group-hover:text-indigo-400 transition-colors">
+                    AI Interview Prep Suite
+                  </h3>
+                  <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mt-2.5 font-medium">
+                    Consult with an AI executive prepper coach. Map dynamically configured 11-topic Bento roadmaps, manage companion notes, and evaluate with 10-concept flash quizzes.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-indigo-400 group-hover:text-indigo-300 pt-6">
+                <span>Open Placement Chamber</span>
+                <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1.5 transition-transform" />
+              </div>
+            </button>
+          </div>
+
+          <div className="text-slate-500 text-[10px] font-mono font-bold tracking-widest uppercase">
+            PromptPass Engine Sync Status: Online
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (activePlanId) {
     return (
       <PracticeSession
@@ -351,6 +455,23 @@ export default function App() {
       {/* DASHBOARD HERO CONTAINER */}
       <div className="flex-grow max-w-5xl mx-auto w-full px-4 py-8 sm:py-12 flex flex-col gap-10">
         
+        {/* SUITE SUB-HEADER & BACK TRIGGER */}
+        <div className="flex items-center justify-between border-b border-slate-200 pb-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setScreenMode('home')}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-350 active:bg-slate-300 text-slate-700 hover:text-slate-900 text-xs font-black rounded-xl border border-solid border-slate-300/80 transition-all cursor-pointer group"
+            >
+              <ChevronLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" />
+              <span>Back to Selection Portal</span>
+            </button>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Current Suite</span>
+            <span className="text-xs font-extrabold text-sky-600 bg-sky-500/10 px-2.5 py-1 rounded-md uppercase tracking-wide">Exam Certifications</span>
+          </div>
+        </div>
+
         {/* WORKSPACES SECTION */}
         <section className="flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">

@@ -10,7 +10,7 @@ dotenv.config();
 
 import { dbStore } from './src/db.js';
 import { parseQuestionFile } from './src/parser.js';
-import { streamEvaluation, streamChat } from './src/ai_service.js';
+import { streamEvaluation, streamChat, streamInterviewConsultation, generateInterviewTopics, generateInterviewTopicQuiz } from './src/ai_service.js';
 
 const app = express();
 const PORT = 3000;
@@ -245,6 +245,112 @@ app.post('/api/chat', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('[SERVER] Chat error:', err);
     res.status(500).json({ detail: err.message || 'Chat process failed' });
+  }
+});
+
+// ==========================================
+// NEW INTERVIEW PREPARATION ROUTES (V2)
+// ==========================================
+
+app.get('/api/interview/plans', async (req: Request, res: Response) => {
+  try {
+    const deviceId = req.headers['x-device-id'] as string || '';
+    const list = await dbStore.getInterviewPlans(deviceId);
+    res.json(list);
+  } catch (err: any) {
+    res.status(500).json({ detail: err.message || 'Failed to retrieve interview plans' });
+  }
+});
+
+app.get('/api/interview/plans/:id', async (req: Request, res: Response) => {
+  try {
+    const deviceId = req.headers['x-device-id'] as string || '';
+    const plan = await dbStore.getInterviewPlan(req.params.id, deviceId);
+    if (!plan) {
+      res.status(404).json({ detail: 'Interview plan not found' });
+      return;
+    }
+    res.json(plan);
+  } catch (err: any) {
+    res.status(500).json({ detail: err.message || 'Failed to retrieve interview plan' });
+  }
+});
+
+app.post('/api/interview/plans', async (req: Request, res: Response) => {
+  try {
+    const plan = req.body;
+    const saved = await dbStore.saveInterviewPlan(plan);
+    res.json(saved);
+  } catch (err: any) {
+    res.status(500).json({ detail: err.message || 'Failed to save interview plan' });
+  }
+});
+
+app.delete('/api/interview/plans/:id', async (req: Request, res: Response) => {
+  try {
+    await dbStore.deleteInterviewPlan(req.params.id);
+    res.json({ status: 'success' });
+  } catch (err: any) {
+    res.status(500).json({ detail: err.message || 'Failed to delete interview plan' });
+  }
+});
+
+app.post('/api/interview/consult', async (req: Request, res: Response) => {
+  const { chat_history, user_message, role, experience_level } = req.body;
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
+
+  if (!user_message || !role || !experience_level) {
+    res.status(400).json({ detail: 'user_message, role, experience_level are required' });
+    return;
+  }
+
+  try {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const generator = streamInterviewConsultation(chat_history || [], user_message, role, experience_level, modelName);
+    for await (const chunk of generator) {
+      res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+    }
+    res.end();
+  } catch (err: any) {
+    console.error('[SERVER] Consult error:', err);
+    res.status(500).json({ detail: err.message || 'Consultation streaming failed' });
+  }
+});
+
+app.post('/api/interview/finalize', async (req: Request, res: Response) => {
+  const { role, experience_level, custom_notes } = req.body;
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
+
+  if (!role || !experience_level) {
+    res.status(400).json({ detail: 'role and experience_level are required' });
+    return;
+  }
+
+  try {
+    const topics = await generateInterviewTopics(role, experience_level, custom_notes || '', modelName);
+    res.json(topics);
+  } catch (err: any) {
+    res.status(500).json({ detail: err.message || 'Generating bento topics study structure failed' });
+  }
+});
+
+app.post('/api/interview/generate-quiz', async (req: Request, res: Response) => {
+  const { role, topic_name } = req.body;
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
+
+  if (!role || !topic_name) {
+    res.status(400).json({ detail: 'role and topic_name are required' });
+    return;
+  }
+
+  try {
+    const quiz = await generateInterviewTopicQuiz(role, topic_name, modelName);
+    res.json(quiz);
+  } catch (err: any) {
+    res.status(500).json({ detail: err.message || 'Generating interview quiz failed' });
   }
 });
 

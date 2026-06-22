@@ -1,36 +1,13 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-
-export interface ExamPlan {
-  id: string;
-  title: string;
-  created_at: string;
-  device_id?: string;
-}
-
-export interface Question {
-  id: string;
-  exam_plan_id: string;
-  question_number: number;
-  text: string;
-  options: Record<string, string>;
-}
-
-export interface UserAttempt {
-  id: string;
-  question_id: string;
-  selected_answer: string;
-  is_correct: boolean;
-  explanation: string;
-  attempted_at: string;
-  device_id?: string;
-}
+import { ExamPlan, Question, UserAttempt, InterviewPlan } from './types';
 
 interface DatabaseSchema {
   plans: ExamPlan[];
   questions: Question[];
   attempts: UserAttempt[];
+  interviewPlans: InterviewPlan[];
 }
 
 const DB_PATH = path.resolve('./src/db.json');
@@ -41,10 +18,16 @@ async function loadDb(): Promise<DatabaseSchema> {
   if (cache) return cache;
   try {
     const data = await fs.readFile(DB_PATH, 'utf-8');
-    cache = JSON.parse(data);
+    const parsed = JSON.parse(data);
+    cache = {
+      plans: parsed.plans || [],
+      questions: parsed.questions || [],
+      attempts: parsed.attempts || [],
+      interviewPlans: parsed.interviewPlans || []
+    };
     return cache!;
   } catch (err) {
-    cache = { plans: [], questions: [], attempts: [] };
+    cache = { plans: [], questions: [], attempts: [], interviewPlans: [] };
     await saveDb();
     return cache;
   }
@@ -52,7 +35,6 @@ async function loadDb(): Promise<DatabaseSchema> {
 
 async function saveDb(): Promise<void> {
   if (!cache) return;
-  // Ensure the directory exists
   try {
     await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
   } catch {}
@@ -138,7 +120,6 @@ export const dbStore = {
 
   saveAttempt: async (attempt: Omit<UserAttempt, 'id' | 'attempted_at'> & { device_id?: string }): Promise<UserAttempt> => {
     const db = await loadDb();
-    // Unique check by question_id and device_id
     db.attempts = db.attempts.filter(
       a => !(a.question_id === attempt.question_id && a.device_id === attempt.device_id)
     );
@@ -151,5 +132,35 @@ export const dbStore = {
     db.attempts.push(newAttempt);
     await saveDb();
     return newAttempt;
+  },
+
+  // ==========================================
+  // NEW INTERVIEW PREPARATION ENDPOINTS (V2)
+  // ==========================================
+
+  getInterviewPlans: async (deviceId: string): Promise<InterviewPlan[]> => {
+    const db = await loadDb();
+    return db.interviewPlans.filter(p => p.device_id === deviceId);
+  },
+
+  getInterviewPlan: async (id: string, deviceId: string): Promise<InterviewPlan | null> => {
+    const db = await loadDb();
+    const found = db.interviewPlans.find(p => p.id === id);
+    if (!found) return null;
+    return found.device_id === deviceId ? found : null;
+  },
+
+  saveInterviewPlan: async (plan: InterviewPlan): Promise<InterviewPlan> => {
+    const db = await loadDb();
+    db.interviewPlans = db.interviewPlans.filter(p => p.id !== plan.id);
+    db.interviewPlans.push(plan);
+    await saveDb();
+    return plan;
+  },
+
+  deleteInterviewPlan: async (id: string): Promise<void> => {
+    const db = await loadDb();
+    db.interviewPlans = db.interviewPlans.filter(p => p.id !== id);
+    await saveDb();
   }
 };

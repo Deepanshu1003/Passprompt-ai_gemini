@@ -472,8 +472,25 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
   const handleSelectAnswer = (key: string) => {
     const q = questions[currentIndex];
     if (!q) return;
-    setSelectedAnswer(key);
-    setQuestionAnswers((prev) => ({ ...prev, [q.id]: key }));
+    
+    const optionKeysCount = Object.keys(q.options).length;
+    if (optionKeysCount > 4) {
+      // Multi-select behavior for questions with more than 4 options (e.g. checkbox state)
+      const currentSelection = selectedAnswer ? selectedAnswer.split(',').map(s => s.trim()).filter(Boolean) : [];
+      let nextSelection: string[];
+      if (currentSelection.includes(key)) {
+        nextSelection = currentSelection.filter(item => item !== key);
+      } else {
+        nextSelection = [...currentSelection, key];
+      }
+      const sortedResult = nextSelection.sort().join(', ');
+      setSelectedAnswer(sortedResult);
+      setQuestionAnswers((prev) => ({ ...prev, [q.id]: sortedResult }));
+    } else {
+      // Standard single-select
+      setSelectedAnswer(key);
+      setQuestionAnswers((prev) => ({ ...prev, [q.id]: key }));
+    }
   };
 
   const navigate = useCallback(
@@ -770,7 +787,8 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                 {/* OPTIONS SELECTION GRID - 100% MOBILE & ACCESSIBILITY READY */}
                 <div className="flex flex-col gap-3 mt-2">
                   {Object.entries(currentQuestion.options).map(([key, val]) => {
-                    const isSelected = selectedAnswer === key;
+                    const isMulti = Object.keys(currentQuestion.options).length > 4;
+                    const isSelected = selectedAnswer ? selectedAnswer.split(',').map(s => s.trim()).includes(key) : false;
                     const choiceColors = isSelected 
                       ? 'border-sky-400 bg-sky-50 text-slate-900 ring-2 ring-sky-100' 
                       : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700 hover:bg-slate-50';
@@ -781,12 +799,17 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                         onClick={() => handleSelectAnswer(key)}
                         className={`w-full p-4 rounded-xl border-2 border-solid text-left transition-all duration-150 flex items-start gap-3 cursor-pointer min-h-[52px] ${choiceColors}`}
                       >
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border border-solid ${isSelected ? 'bg-sky-500 border-sky-500 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
+                        <span className={`w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0 border border-solid ${isMulti ? 'rounded-md' : 'rounded-full'} ${isSelected ? 'bg-sky-500 border-sky-500 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
                           {key}
                         </span>
-                        <span className="text-sm md:text-base font-medium leading-normal pt-0.5 select-text">
+                        <span className="text-sm md:text-base font-medium leading-normal pt-0.5 select-text flex-1">
                           {val}
                         </span>
+                        {isMulti && (
+                          <span className="text-[10px] font-black uppercase text-sky-500 bg-sky-500/10 px-2 py-0.5 rounded ml-auto">
+                            Multi-select
+                          </span>
+                        )}
                       </button>
                     );
                   })}
