@@ -8,7 +8,9 @@ import {
   getOrCreateDeviceId, 
   getDeviceName, 
   setDeviceName, 
-  setDeviceId 
+  setDeviceId,
+  getActiveGeminiModel,
+  setActiveGeminiModel
 } from './offlineCache';
 
 // The PromptPass Logo: Fusion of Brain (Mind/AI) and Book (Knowledge)
@@ -88,14 +90,16 @@ export default function App() {
     e.preventDefault();
     setUploadError(null);
 
+    const formElement = e.currentTarget;
+
     if (usingCache) {
       setUploadError('Uploading or creating new study rooms is not supported while working offline.');
       return;
     }
 
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(formElement);
     const planTitle = formData.get('plan_title') as string;
-    const fileInput = (e.currentTarget.elements.namedItem('question_bank') as HTMLInputElement)?.files?.[0];
+    const fileInput = (formElement.elements.namedItem('question_bank') as HTMLInputElement)?.files?.[0];
 
     if (!planTitle || !fileInput) {
       setUploadError('Please specify a title and select a files source.');
@@ -108,7 +112,8 @@ export default function App() {
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: {
-          'x-device-id': getOrCreateDeviceId()
+          'x-device-id': getOrCreateDeviceId(),
+          'x-gemini-model': getActiveGeminiModel()
         },
         body: formData,
       });
@@ -124,8 +129,8 @@ export default function App() {
       if (response.ok && data.exam_plan_id) {
         await fetchPlans();
         setActivePlanId(data.exam_plan_id);
-        // Reset form
-        e.currentTarget.reset();
+        // Reset form safely
+        formElement.reset();
       } else {
         setUploadError(data.detail || 'The question bank processing failed. Please check the file contents.');
       }

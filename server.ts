@@ -42,8 +42,10 @@ app.post('/api/upload', upload.single('question_bank'), async (req: Request, res
 
     console.log(`[SERVER] Uploaded path: ${tempPath}, original: ${originalFilename}`);
     
+    const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
+
     // Parse Questions
-    const extracted = await parseQuestionFile(tempPath, originalFilename);
+    const extracted = await parseQuestionFile(tempPath, originalFilename, modelName);
 
     if (extracted.length === 0) {
       res.status(400).json({
@@ -158,6 +160,7 @@ app.get('/api/plans/:plan_id/progress', async (req: Request, res: Response) => {
 app.post('/api/evaluate', async (req: Request, res: Response) => {
   const { question_id, selected_answer } = req.body;
   const deviceId = req.headers['x-device-id'] as string | undefined;
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
   
   if (!question_id || !selected_answer) {
     res.status(400).json({ detail: 'question_id and selected_answer are required' });
@@ -187,7 +190,7 @@ app.post('/api/evaluate', async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const evaluationGenerator = streamEvaluation(question.text, question.options, selected_answer);
+    const evaluationGenerator = streamEvaluation(question.text, question.options, selected_answer, modelName);
     let fullResponseText = '';
 
     for await (const chunk of evaluationGenerator) {
@@ -218,6 +221,7 @@ app.post('/api/evaluate', async (req: Request, res: Response) => {
 
 app.post('/api/chat', async (req: Request, res: Response) => {
   const { question_text, ai_explanation, user_message } = req.body;
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
 
   if (!question_text || !ai_explanation || !user_message) {
     res.status(400).json({ detail: 'question_text, ai_explanation, and user_message are required' });
@@ -230,7 +234,7 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const chatGenerator = streamChat(question_text, ai_explanation, user_message);
+    const chatGenerator = streamChat(question_text, ai_explanation, user_message, modelName);
 
     for await (const chunk of chatGenerator) {
       res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);

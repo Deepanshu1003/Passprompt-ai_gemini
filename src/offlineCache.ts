@@ -143,3 +143,26 @@ export function setDeviceName(name: string): void {
     localStorage.setItem(DEVICE_NAME_KEY, name.trim());
   } catch {}
 }
+
+const MODEL_CACHE_KEY = 'promptpass_gemini_model';
+
+/**
+ * Retrieves the currently selected Gemini model or defaults to gemini-3.5-flash
+ */
+export function getActiveGeminiModel(): string {
+  try {
+    return localStorage.getItem(MODEL_CACHE_KEY) || 'gemini-3.5-flash';
+  } catch {
+    return 'gemini-3.5-flash';
+  }
+}
+
+/**
+ * Saves the selected Gemini model
+ */
+export function setActiveGeminiModel(modelName: string): void {
+  try {
+    localStorage.setItem(MODEL_CACHE_KEY, modelName);
+  } catch {}
+}
+

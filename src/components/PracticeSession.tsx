@@ -26,7 +26,9 @@ import {
   getCachedQuestions, 
   cacheProgress, 
   getCachedProgress,
-  getOrCreateDeviceId
+  getOrCreateDeviceId,
+  getActiveGeminiModel,
+  setActiveGeminiModel
 } from '../offlineCache';
 
 const MarkdownComponents = {
@@ -163,6 +165,7 @@ interface PracticeSessionProps {
 
 export default function PracticeSession({ planId, plans, onSwitch, onBack }: PracticeSessionProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [activeModel, setActiveModel] = useState<string>(() => getActiveGeminiModel());
   const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [offlineActive, setOfflineActive] = useState(false);
@@ -368,7 +371,8 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-device-id': getOrCreateDeviceId()
+          'x-device-id': getOrCreateDeviceId(),
+          'x-gemini-model': activeModel
         },
         body: JSON.stringify({ question_id: q.id, selected_answer: selectedAnswer }),
       });
@@ -416,7 +420,11 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-device-id': getOrCreateDeviceId(),
+          'x-gemini-model': activeModel
+        },
         body: JSON.stringify({
           question_text: q.text,
           ai_explanation: explanation,
@@ -583,6 +591,35 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
             </option>
           ))}
         </select>
+
+        {/* STUDY MODEL CONFIG SELECTOR */}
+        <div className="mb-6 bg-slate-800/20 hover:bg-slate-800/30 border border-slate-800/40 p-4 rounded-xl transition-all">
+          <label className="block text-[9px] tracking-wider text-slate-400 font-extrabold uppercase mb-2 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" /> ACTIVE GEMINI MODEL
+          </label>
+          <select
+            value={activeModel}
+            onChange={(e) => {
+              const val = e.target.value;
+              setActiveModel(val);
+              setActiveGeminiModel(val);
+            }}
+            className="w-full py-2 px-2 bg-slate-950 border border-slate-700 rounded-lg text-xs font-medium text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+          >
+            <option value="gemini-3.5-flash">Gemini 3.5 Flash (Default)</option>
+            <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (Lite/Eco)</option>
+            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Expert/Heavy)</option>
+          </select>
+          <div className="mt-2 flex flex-col gap-1 text-[9px] text-slate-500 font-medium leading-tight select-none">
+            {activeModel === 'gemini-3.1-flash-lite' ? (
+              <span className="text-emerald-400/90 font-bold">✓ Best for 200-300+ daily evaluations. Highly optimized.</span>
+            ) : activeModel === 'gemini-3.1-pro-preview' ? (
+              <span className="text-amber-400/95 font-bold">★ Highest accuracy reasoning. Requires premium keys.</span>
+            ) : (
+              <span>⚡ Fast interactive responses and smart tutoring.</span>
+            )}
+          </div>
+        </div>
 
         {/* PROGRESS METRIC BAR */}
         <div className="mb-6 bg-slate-800/40 p-4 rounded-xl border border-slate-800/60">

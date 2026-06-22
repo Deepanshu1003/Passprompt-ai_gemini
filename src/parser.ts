@@ -9,8 +9,12 @@ export interface ExtractedQuestion {
   options: Record<string, string>;
 }
 
-export async function parseQuestionFile(filePath: string, originalFilename: string): Promise<ExtractedQuestion[]> {
-  console.log(`\n[PARSER] Initiating extraction for: ${filePath}`);
+export async function parseQuestionFile(
+  filePath: string,
+  originalFilename: string,
+  modelName: string = 'gemini-3.5-flash'
+): Promise<ExtractedQuestion[]> {
+  console.log(`\n[PARSER] Initiating extraction for: ${filePath} (using model: ${modelName})`);
   
   const ext = path.extname(originalFilename).toLowerCase();
   let rawText = '';
@@ -28,9 +32,9 @@ export async function parseQuestionFile(filePath: string, originalFilename: stri
 
   // If deterministic indexing returns nothing, invoke Gemini fallback parser
   if (questions.length === 0 && rawText.trim().length > 10) {
-    console.log('[PARSER] Deterministic regex found 0 questions. Invoking Gemini AI parser...');
+    console.log(`[PARSER] Deterministic regex found 0 questions. Invoking Gemini AI parser using: ${modelName}...`);
     try {
-      questions = await parseQuestionsWithGemini(rawText);
+      questions = await parseQuestionsWithGemini(rawText, modelName);
     } catch (err: any) {
       console.error('[PARSER] Error running Gemini fallback parser:', err);
     }

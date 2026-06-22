@@ -21,11 +21,22 @@ export interface ExtractedQuestion {
   options: Record<string, string>;
 }
 
+export function isQuotaOrRateLimitError(err: any): boolean {
+  const errMsg = String(err?.message || err || '');
+  return (
+    errMsg.includes('429') || 
+    errMsg.includes('RESOURCE_EXHAUSTED') || 
+    errMsg.includes('Quota exceeded') ||
+    errMsg.includes('quota') ||
+    errMsg.includes('rate limit')
+  );
+}
+
 /**
  * Parses raw text from files and extracts clean, schema-guided test questions using Gemini
  */
-export async function parseQuestionsWithGemini(fullText: string): Promise<ExtractedQuestion[]> {
-  console.log(`[AI SERVICE] Re-routing parsing request to Gemini for clean schema extraction (${fullText.length} characters)...`);
+export async function parseQuestionsWithGemini(fullText: string, modelName: string = 'gemini-3.5-flash'): Promise<ExtractedQuestion[]> {
+  console.log(`[AI SERVICE] Re-routing parsing request to Gemini (${modelName}) for clean schema extraction (${fullText.length} characters)...`);
 
   if (!fullText.trim()) {
     return [];
@@ -49,7 +60,7 @@ Instructions:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: modelName,
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -124,7 +135,14 @@ Instructions:
     return parsed;
   } catch (err: any) {
     console.error(`[AI SERVICE] Critical error parsing questions with Gemini:`, err);
-    return [];
+    if (isQuotaOrRateLimitError(err)) {
+      if (modelName !== 'gemini-3.1-flash-lite') {
+        console.warn(`[AI SERVICE] Quota encountered for model "${modelName}". Automatically falling back to robust "gemini-3.1-flash-lite"...`);
+        return parseQuestionsWithGemini(fullText, 'gemini-3.1-flash-lite');
+      }
+      throw new Error(`Gemini API Quota Exceeded (429): You have run out of your daily or per-minute free-tier limit for model "${modelName}". Please wait a bit or try again later!`);
+    }
+    throw err;
   }
 }
 
@@ -134,7 +152,8 @@ Instructions:
 export async function* streamEvaluation(
   questionText: string,
   options: Record<string, string>,
-  selectedAnswer: string
+  selectedAnswer: string,
+  modelName: string = 'gemini-3.5-flash'
 ): AsyncGenerator<string, void, unknown> {
   const prompt = `You are an expert competitive-exam evaluator.
 
@@ -171,7 +190,7 @@ Use Markdown formatting.`;
 
   try {
     const responseStream = await ai.models.generateContentStream({
-      model: 'gemini-3.5-flash',
+      model: modelName,
       contents: prompt,
       config: {
         temperature: 0.2
@@ -185,7 +204,16 @@ Use Markdown formatting.`;
     }
   } catch (err: any) {
     console.error(`[AI SERVICE] Error in streamEvaluation:`, err);
-    yield `\n\n[AI Error: ${err.message || err}]`;
+    if (isQuotaOrRateLimitError(err)) {
+      if (modelName !== 'gemini-3.1-flash-lite') {
+        console.warn(`[AI SERVICE] Quota encountered for model "${modelName}". Automatically falling back to "gemini-3.1-flash-lite"...`);
+        yield* streamEvaluation(questionText, options, selectedAnswer, 'gemini-3.1-flash-lite');
+        return;
+      }
+      yield `\n\n### ⚠️ Gemini API Quota Exceeded\n\nYou have run out of your Gemini API key's daily or minute-based quota limit for the model **${modelName}**.\n\n* **Immediate Solution**: Please use the **Active Gemini Model** selector in the left sidebar to change your model to **Gemini 3.1 Flash Lite** (the highly efficient Lite model) and try again!\n* **Alternative**: Wait a short moment or provide a custom API key in Settings if you have one.`;
+    } else {
+      yield `\n\n[AI Error: ${err.message || err}]`;
+    }
   }
 }
 
@@ -195,7 +223,8 @@ Use Markdown formatting.`;
 export async function* streamChat(
   questionText: string,
   aiExplanation: string,
-  userMessage: string
+  userMessage: string,
+  modelName: string = 'gemini-3.5-flash'
 ): AsyncGenerator<string, void, unknown> {
   const prompt = `You are an expert AI tutor helping a student.
 
@@ -218,7 +247,7 @@ Instructions:
 
   try {
     const responseStream = await ai.models.generateContentStream({
-      model: 'gemini-3.5-flash',
+      model: modelName,
       contents: prompt,
       config: {
         temperature: 0.8
@@ -232,6 +261,15 @@ Instructions:
     }
   } catch (err: any) {
     console.error(`[AI SERVICE] Error in streamChat:`, err);
-    yield `\n\n[AI Error: ${err.message || err}]`;
+    if (isQuotaOrRateLimitError(err)) {
+      if (modelName !== 'gemini-3.1-flash-lite') {
+        console.warn(`[AI SERVICE] Quota encountered for model "${modelName}". Automatically falling back to "gemini-3.1-flash-lite"...`);
+        yield* streamChat(questionText, aiExplanation, userMessage, 'gemini-3.1-flash-lite');
+        return;
+      }
+      yield `\n\n### ⚠️ Gemini API Quota Exceeded\n\nYou have run out of your Gemini API key's daily or minute-based quota limit for the model **${modelName}**.\n\n* **Immediate Solution**: Please use the **Active Gemini Model** selector in the left sidebar to change your model to **Gemini 3.1 Flash Lite** (the highly efficient Lite model) and try again!\n* **Alternative**: Wait a short moment or provide a custom API key in Settings if you have one.`;
+    } else {
+      yield `\n\n[AI Error: ${err.message || err}]`;
+    }
   }
 }
