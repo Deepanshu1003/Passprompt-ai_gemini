@@ -10,7 +10,7 @@ dotenv.config();
 
 import { dbStore } from './src/db.js';
 import { parseQuestionFile } from './src/parser.js';
-import { streamEvaluation, streamChat, streamInterviewConsultation, generateInterviewTopics, generateInterviewTopicQuiz } from './src/ai_service.js';
+import { streamEvaluation, streamChat, streamInterviewConsultation, generateInterviewTopics, editExistingInterviewPlan, generateInterviewTopicQuiz, streamTopicChat, suggestTargetedRoles } from './src/ai_service.js';
 
 const app = express();
 const PORT = 3000;
@@ -320,6 +320,31 @@ app.post('/api/interview/consult', async (req: Request, res: Response) => {
   }
 });
 
+app.post('/api/interview/topic-chat', async (req: Request, res: Response) => {
+  const { topic_name, topic_description, chat_history, user_message } = req.body;
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
+
+  if (!topic_name || !topic_description || !user_message) {
+    res.status(400).json({ detail: 'topic_name, topic_description, and user_message are required' });
+    return;
+  }
+
+  try {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const generator = streamTopicChat(topic_name, topic_description, chat_history || [], user_message, modelName);
+    for await (const chunk of generator) {
+      res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+    }
+    res.end();
+  } catch (err: any) {
+    console.error('[SERVER] Topic chat error:', err);
+    res.status(500).json({ detail: err.message || 'Topic chat streaming failed' });
+  }
+});
+
 app.post('/api/interview/finalize', async (req: Request, res: Response) => {
   const { role, experience_level, custom_notes } = req.body;
   const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
@@ -337,6 +362,23 @@ app.post('/api/interview/finalize', async (req: Request, res: Response) => {
   }
 });
 
+app.post('/api/interview/edit-plan', async (req: Request, res: Response) => {
+  const { current_topics, modification_prompt, role, experience_level } = req.body;
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
+
+  if (!current_topics || !modification_prompt || !role || !experience_level) {
+    res.status(400).json({ detail: 'current_topics, modification_prompt, role, and experience_level are required' });
+    return;
+  }
+
+  try {
+    const updatedTopics = await editExistingInterviewPlan(current_topics, modification_prompt, role, experience_level, modelName);
+    res.json(updatedTopics);
+  } catch (err: any) {
+    res.status(500).json({ detail: err.message || 'Editing key topics learning template failed' });
+  }
+});
+
 app.post('/api/interview/generate-quiz', async (req: Request, res: Response) => {
   const { role, topic_name } = req.body;
   const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
@@ -351,6 +393,23 @@ app.post('/api/interview/generate-quiz', async (req: Request, res: Response) => 
     res.json(quiz);
   } catch (err: any) {
     res.status(500).json({ detail: err.message || 'Generating interview quiz failed' });
+  }
+});
+
+app.post('/api/interview/suggest-roles', async (req: Request, res: Response) => {
+  const { resume_text } = req.body;
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
+
+  if (!resume_text) {
+    res.status(400).json({ detail: 'resume_text is required' });
+    return;
+  }
+
+  try {
+    const suggestions = await suggestTargetedRoles(resume_text, modelName);
+    res.json(suggestions);
+  } catch (err: any) {
+    res.status(500).json({ detail: err.message || 'Analyzing resume and suggesting roles failed' });
   }
 });
 

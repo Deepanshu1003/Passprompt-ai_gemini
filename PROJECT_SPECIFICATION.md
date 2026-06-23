@@ -1,13 +1,13 @@
-# PromptPass - Complete Application & Engineering Specification
+# PrepMaster - Complete Application & Engineering Specification
 *Drafted for Google AI Studio Build & Code Generator Agents*
 
-This document provides a highly detailed, comprehensive roadmap of the **PromptPass** full-stack ecosystem. By feeding this specification to any modern language model or the Google AI Studio builder, a duplicate or upgraded version of the system can be generated with absolute parity.
+This document provides a highly detailed, comprehensive roadmap of the **PrepMaster** full-stack ecosystem. By feeding this specification to any modern language model or the Google AI Studio builder, a duplicate or upgraded version of the system can be generated with absolute parity.
 
 ---
 
 ## 1. Product Identity & Core Philosophy
 
-**PromptPass** is an elegant, full-stack, AI-powered preparation suite for high-stakes certification examinations (e.g., AWS Certified Solutions Architect, PMP, Scrum Master). The system is built around several unique, student-first constraints:
+**PrepMaster** is an elegant, full-stack, AI-powered preparation suite for high-stakes certification examinations (e.g., AWS Certified Solutions Architect, PMP, Scrum Master). The system is built around several unique, student-first constraints:
 
 1. **Anti-Clutter Layout**: Avoid traditional overbearing controls in favor of an immersive "learning theater".
 2. **Device-Isolated Workspaces**: By default, different devices or browser tabs run within a custom, secure sandbox (driven by a unique workspace token `x-device-id` passed in request headers). Users can pair devices manually via a "Sync / Swap" control if they wish, but uploads on one device never pollute another.
@@ -162,10 +162,10 @@ To protect user progress in unstable environments, the active state mirrors meta
 
 ```typescript
 export const getOrCreateDeviceId = (): string => {
-  let id = localStorage.getItem('promptpass_device_id');
+  let id = localStorage.getItem('prepmaster_device_id');
   if (!id) {
     id = 'DEV_' + Math.random().toString(36).substring(2, 9).toUpperCase();
-    localStorage.setItem('promptpass_device_id', id);
+    localStorage.setItem('prepmaster_device_id', id);
   }
   return id;
 };

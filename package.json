@@ -1,13 +1,13 @@
 {
-  "name": "promptpass",
+  "name": "prepmaster",
   "version": "1.1.0",
   "description": "An elite AI-powered certification learning room and interactive tutor workspace built with React 19, Express, TypeScript, and Google Gemini API.",
   "type": "module",
-  "author": "PromptPass Contributors",
+  "author": "PrepMaster AI Contributors",
   "license": "MIT",
   "homepage": "https://ai.studio/build",
   "keywords": [
-    "promptpass",
+    "prepmaster",
     "gemini-api",
     "certification-prep",
     "interactive-tutor",

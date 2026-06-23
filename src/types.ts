@@ -42,13 +42,20 @@ export interface InterviewReferenceLink {
 }
 
 export interface InterviewTopicDetails {
-  id: string; // Unique index, "1" to "11"
+  id: string; // Unique index
   name: string;
   description: string;
   completed: boolean;
   notes?: string; // Structured note memory
   cards: InterviewTopicCard[];
   referenceLinks: InterviewReferenceLink[];
+  chatHistory?: ChatMessage[]; // Optional per-topic conversational logs
+  quizQuestions?: any[]; // Optional persistent quiz questions
+  quizCurrentIndex?: number; // Current active index in quiz
+  quizSelectedAnswer?: string | null; // Selected answer key
+  quizIsAnswerSubmitted?: boolean; // True if current question's answer is submitted
+  quizScoreCounter?: number; // Score count
+  quizCompleted?: boolean; // True if quiz is finished/reviewed
 }
 
 export interface InterviewQuizScore {

@@ -14,7 +14,7 @@ import {
   setActiveGeminiModel
 } from './offlineCache';
 
-// The PromptPass Logo: Fusion of Brain (Mind/AI) and Book (Knowledge) with cyber-futuristic styling
+// The PrepMaster Logo: Fusion of Brain (Mind/AI) and Book (Knowledge) with cyber-futuristic styling
 export const AppLogo = () => (
   <div className="flex items-center">
     <div className="relative flex items-center group">
@@ -269,7 +269,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase flex items-center justify-center gap-1.5">
-                PromptPass
+                PrepMaster
                 <span className="text-xs px-2 py-1 rounded bg-sky-500/10 border border-sky-500/30 text-sky-400 font-mono tracking-widest uppercase">V2.0</span>
               </h1>
               <p className="text-xs md:text-sm text-slate-400 font-semibold max-w-md mx-auto mt-3 leading-relaxed">
@@ -341,7 +341,7 @@ export default function App() {
           </div>
 
           <div className="text-slate-500 text-[10px] font-mono font-bold tracking-widest uppercase">
-            PromptPass Engine Sync Status: Online
+            PrepMaster Engine Sync Status: Online
           </div>
         </div>
       </div>
@@ -368,7 +368,7 @@ export default function App() {
           <AppLogo />
           <div>
             <h1 className="text-lg sm:text-xl font-black text-white tracking-tight leading-none">
-              PromptPass
+              PrepMaster
             </h1>
             <span className="text-[9px] font-bold text-sky-400 tracking-widest uppercase">
               Mastery Engine
@@ -403,7 +403,7 @@ export default function App() {
                 <span>🔒 Device Isolation & Cross-Device Sync</span>
               </h4>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                By default, PromptPass isolates your study workspaces to your current active browser/device. 
+                By default, PrepMaster isolates your study workspaces to your current active browser/device. 
                 Want to link your mobile phone, tablet, or another browser? Simply enter the same <strong>Workspace ID</strong> below to instantly pair and synchronize all patterns and progress!
               </p>
             </div>
@@ -613,7 +613,7 @@ export default function App() {
 
       {/* FOOTER */}
       <footer className="text-center py-6 border-t border-slate-200 text-[11px] font-bold text-slate-400 select-none bg-white">
-        © 2026 PromptPass .ai — Premium Certification Study Rooms
+        © 2026 PrepMaster .ai — Premium Certification Study Rooms
       </footer>
     </div>
   );

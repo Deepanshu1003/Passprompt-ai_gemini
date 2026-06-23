@@ -313,7 +313,7 @@ ${userMessage}
 Instructions:
 1. Talk to the student like a friendly, highly professional mentor.
 2. Provide strategic guidance, ask clarifying questions about their specialization in ${role}, and help them align their study.
-3. Suggest that when they are happy, they should click the "FINALIZE SYLLABUS & UNLOCK BENTO BOARD" button to assemble an adaptive 11-topic deep-dive bento grid representing their personalized study track.
+3. Suggest that when they are happy, they should click the "FINALIZE SYLLABUS & UNLOCK BENTO BOARD" button to assemble an adaptive, dynamically sized deep-dive study syllabus representing their personalized study track.
 4. Keep answers concise, highly structured, and use Markdown bullet points where appropriate.`;
 
   try {
@@ -346,7 +346,62 @@ Instructions:
 }
 
 /**
- * Generates an array of exactly 11 highly-curated tech topics corresponding to the target role
+ * Stream tutor chat for an interview topic
+ */
+export async function* streamTopicChat(
+  topicName: string,
+  topicDescription: string,
+  chatHistory: { role: 'user' | 'ai'; content: string }[],
+  userMessage: string,
+  modelName: string = 'gemini-3.5-flash'
+): AsyncGenerator<string, void, unknown> {
+  const historyPrompt = chatHistory
+    .map(msg => `${msg.role === 'user' ? 'Student' : 'AI Partner'}: ${msg.content}`)
+    .join('\n');
+
+  const prompt = `You are an expert tech interview tutor and career partner. You are helping a student master the topic "${topicName}".
+Topic Concept Context:
+"${topicDescription}"
+
+Previous Chat logs:
+${historyPrompt}
+
+Student Message:
+"${userMessage}"
+
+Instructions:
+1. Walk the student through the concept step-by-step with clear, beautiful, and rich explanations.
+2. Underneath your explanation, provide diagnostic examples, sample interviewer questions, or complex edge cases.
+3. Keep the content extremely detailed, professional, and formatted in Markdown. Return well-written TypeScript, SQL, or architectural diagrams wherever relevant.`;
+
+  try {
+    const responseStream = await ai.models.generateContentStream({
+      model: modelName,
+      contents: prompt,
+      config: {
+        temperature: 0.7
+      }
+    });
+
+    for await (const chunk of responseStream) {
+      if (chunk.text) {
+        yield chunk.text;
+      }
+    }
+  } catch (err: any) {
+    console.error(`[AI SERVICE] Error in streamTopicChat:`, err);
+    if (isQuotaOrRateLimitError(err)) {
+      if (modelName !== 'gemini-3.1-flash-lite') {
+        yield* streamTopicChat(topicName, topicDescription, chatHistory, userMessage, 'gemini-3.1-flash-lite');
+        return;
+      }
+    }
+    yield `\n\n[Chat Error: ${err.message || err}]`;
+  }
+}
+
+/**
+ * Generates an array of highly-curated tech topics corresponding to the target role
  */
 export async function generateInterviewTopics(
   role: string,
@@ -354,42 +409,35 @@ export async function generateInterviewTopics(
   customNotesText: string,
   modelName: string = 'gemini-3.5-flash'
 ): Promise<any[]> {
-  console.log(`[AI SERVICE] Generating 11-topic bento blueprint for "${role}" (${experienceLevel})...`);
+  console.log(`[AI SERVICE] Generating dynamic bento blueprint for "${role}" (${experienceLevel})...`);
 
-  const prompt = `You are a curriculum developer for top tier tech firms. Create a highly structured preparation roadmap containing EXACTLY 11 topics for a "${role}" at experience tier "${experienceLevel}".
+  const prompt = `You are an expert curriculum developer for top tier tech firms. Create a highly structured preparation roadmap containing dynamic major study topics (typically between 8 to 12 topics customized to the role's scope and depth) for a "${role}" at experience tier "${experienceLevel}".
+
+CRITICAL REQUIREMENT:
+You MUST consider and add ALL relevant skills required to prepare, specifically balancing:
+1. Technical Skills, tech stacks, tools, coding practices, system design, databases, architectures, and testing methodologies.
+2. Non-Technical / Behavioral Skills, such as STAR methodology behavioral questions, project delivery communication, leadership presence, managing conflicts, working with product managers, situational judgment, and career narrative. Ensure at least 1-2 topics cover these non-technical/behavioral areas.
+
 Custom developer specifications if any:
 "${customNotesText}"
 
-Your output MUST be a JSON array of exactly 11 topics.
+Your output MUST be a JSON array of custom topics (each topic customized to focus areas).
 Each topic object must conform to this schema:
-- "id": a string from "1" to "11".
+- "id": a unique incremental string starting from "1".
 - "name": The short, concise title of the focus area.
-- "description": A high-yield single-sentence overview of the focus area.
+- "description": A detailed, high-yield comprehensive overview of the focus area.
 - "completed": false
-- "cards": An array of exactly 3 detailed cards/subtopics representing core concepts.
+- "cards": An array of multiple highly detailed, textbook-quality cards/subtopics representing core concepts (anywhere from 3 to 15 subtopics/cards depending on the topic's depth. Be comprehensive and do NOT limit yourself to exactly 3).
   Each card must have:
   - "title": Title of subtopic
-  - "content": An educational description detailing expected questions and key principles.
+  - "content": An extremely detailed, highly educational breakdown (with at least 200-250 words per card!) containing exact sample questions, step-by-step theoretical principles, real-world trade-offs, and critical diagnostic insights. Be verbose, structured, and deep.
   - "code": Optional code snippet (valid JS/TS/SQL/Python structure) or ASCII system architecture diagram. Leave empty if not applicable.
-- "referenceLinks": An array of exactly 2 reference links for deeper study:
+- "referenceLinks": An array of reference links for deeper study:
   - "label": Short caption (e.g., "MDN Web Security", "AWS Sharding Guide", "System Design Primer")
   - "url": A mock learning link or real search query recommendation formatted as a Google query e.g., "https://www.google.com/search?q=system+design+scaling+databases"
 
 Topic selection guidelines:
-For tech/developer roles, cover concepts like:
-1. Core Language & Tech Fundamentals
-2. Data Structures & Complex Algorithms
-3. System Design & Scalability
-4. Concurrency & Parallel Programming
-5. Databases, Sharding, & Cache Layering
-6. Protocols, Web Standards, & API Architectures
-7. OS Kernels, Networking, & Memory management
-8. Behavior, Leadership, & STAR scenarios
-9. Troubleshooting, Memory leaks, & Tracing
-10. Design Patterns & OOP vs Functional Architectural paradigms
-11. Secure coding, OWASP top 10, & extreme edge exceptions
-
-For non-tech/other roles, map matching competencies into exactly 11 topics!
+Choose the appropriate number of topics (standard is 8 to 15 key chapters depending on study depth) based on the target role details. Do not hardcode a specific limit like 11.
 Ensure your reply is valid JSON.`;
 
   try {
@@ -460,6 +508,107 @@ Ensure your reply is valid JSON.`;
     // Return robust local backup to guarantee 100% stable uptime for the student
     console.warn(`[AI SERVICE] Returning robust default 11 topic syllabus blueprint to protect user uptime.`);
     return getBackupTopics(role, experienceLevel);
+  }
+}
+
+/**
+ * Modifies an existing study plan topics array based on user AI modification commands
+ */
+export async function editExistingInterviewPlan(
+  currentPlanTopics: any[],
+  modificationPrompt: string,
+  role: string,
+  experienceLevel: string,
+  modelName: string = 'gemini-3.5-flash'
+): Promise<any[]> {
+  console.log(`[AI SERVICE] Editing dynamic bento blueprint for "${role}" (${experienceLevel}) based on feedback...`);
+
+  const prompt = `You are an expert curriculum developer. You have an existing study plan with the following topics list:
+${JSON.stringify(currentPlanTopics)}
+
+The user wants to modify and update this study plan.
+The target role is: "${role}" at experience tier "${experienceLevel}".
+The modification request is: "${modificationPrompt}"
+
+Your task is to rewrite, tweak, expand, swap, or refine the existing topics list to satisfy the candidate's request perfectly.
+- You can maintain existing topics that do not need change.
+- You can edit the title, description, or detailed cards inside any topic.
+- You can add brand new topics or remove topics if requested.
+- Ensure that the final topics list is highly comprehensive, covering both technical and non-technical skills required for an interview.
+- Do NOT lose completed status or notes of topics unless they are replaced or removed. If you keep a topic, preserve its existing completed status.
+
+Your output MUST be a JSON array of custom topics (each topic customized to focus areas).
+Each topic object must conform EXACTLY to this schema:
+- "id": a unique string (maintain original IDs index where possible, or generate sequential ones).
+- "name": Focus area title.
+- "description": Focus area overview.
+- "completed": boolean (preserve completed state of retained topics, default to false for new ones)
+- "cards": Array of multiple cards (anywhere from 3 to 15 cards as needed). Each card has "title", "content", and optional "code" snippet. Text must be structured and deep (detailed explanations containing scenario-based analysis).
+- "referenceLinks": Array of learning links. Each link has "label" and "url".
+
+Ensure your reply is valid JSON conforming to this array schema.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              name: { type: Type.STRING },
+              description: { type: Type.STRING },
+              completed: { type: Type.BOOLEAN },
+              cards: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    content: { type: Type.STRING },
+                    code: { type: Type.STRING }
+                  },
+                  required: ['title', 'content']
+                }
+              },
+              referenceLinks: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    label: { type: Type.STRING },
+                    url: { type: Type.STRING }
+                  },
+                  required: ['label', 'url']
+                }
+              }
+            },
+            required: ['id', 'name', 'description', 'completed', 'cards', 'referenceLinks']
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error('Received empty text response from Gemini Topic Architect.');
+    }
+
+    const topicsList = JSON.parse(text);
+    return topicsList;
+  } catch (err: any) {
+    console.error(`[AI SERVICE] Error modifying interview topics:`, err);
+    if (isQuotaOrRateLimitError(err)) {
+      if (modelName !== 'gemini-3.1-flash-lite') {
+        return editExistingInterviewPlan(currentPlanTopics, modificationPrompt, role, experienceLevel, 'gemini-3.1-flash-lite');
+      }
+    }
+    // Return original topics on complete failure to make sure nothing is lost
+    return currentPlanTopics;
   }
 }
 
@@ -624,3 +773,90 @@ function getBackupQuiz(role: string, topicName: string): any[] {
   }
   return quiz;
 }
+
+/**
+ * Analyzes resume content or user experience summary to suggest targeted primary roles and profiles.
+ */
+export async function suggestTargetedRoles(
+  resumeText: string,
+  modelName: string = 'gemini-3.5-flash'
+): Promise<any[]> {
+  console.log(`[AI SERVICE] Suggesting roles based on bio/resume analysis...`);
+
+  const prompt = `You are an elite silicon-valley executive tech recruiter. Analyze the following candidate summary, bio, skill profile, or resume text:
+"""
+${resumeText}
+"""
+
+Identify the top 3 best matching target professions / interview roles (e.g., "Senior Fullstack Engineer", "Lead Developer Relations", "Principal DevSecOps Architect") for this candidate.
+For each role, provide:
+1. "roleName": High-yield professional title
+2. "experienceTier": Recommended tier (Junior, Mid, Senior, Principal, Lead)
+3. "fitReasoning": Concise summary explaining why their background matches this role
+4. "keySkillsHighlight": Exactly 4 crucial skills or technical keywords they should highlight for this role
+
+Return your recommendation as a valid JSON array matching this exact schema:
+- "roleName": string
+- "experienceTier": string
+- "fitReasoning": string
+- "keySkillsHighlight": array of strings (exactly 4 elements)
+
+Ensure your output is strictly valid JSON conforming to this schema. Do not write any markdown wrappers outside of the JSON array.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              roleName: { type: Type.STRING },
+              experienceTier: { type: Type.STRING },
+              fitReasoning: { type: Type.STRING },
+              keySkillsHighlight: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ['roleName', 'experienceTier', 'fitReasoning', 'keySkillsHighlight']
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error('Received empty text response from Gemini Recruiter Coach.');
+    }
+
+    return JSON.parse(text);
+  } catch (err: any) {
+    console.error(`[AI SERVICE] error suggesting target roles:`, err);
+    // Return mock fallback profiles matching modern trends
+    return [
+      {
+        roleName: "Senior Fullstack Architect",
+        experienceTier: "Senior",
+        fitReasoning: "Based on active web technologies, server frameworks, and database architecture references in your bio.",
+        keySkillsHighlight: ["React 19 / TypeScript", "Node.js (Express)", "SQL & NoSQL Engines", "Cloud Run Container Systems"]
+      },
+      {
+        roleName: "Lead Frontend Systems Engineer",
+        experienceTier: "Lead",
+        fitReasoning: "Refined components layout, performance tracking, dynamic state design, and responsive visuals focus.",
+        keySkillsHighlight: ["Tailwind Utility Design", "State Composition & Hooks", "Incremental DOM Tuning", "Lighthouse Score Optimization"]
+      },
+      {
+        roleName: "Product Platform Engineer",
+        experienceTier: "Mid-Senior",
+        fitReasoning: "Strong alignment to product workflows, local browser databases, secure offline caching, and user journey optimization.",
+        keySkillsHighlight: ["Product Narrative Alignment", "Local Memory Sandboxing", "High-Fidelity UI Prototyping", "Fail-Safe Caching Models"]
+      }
+    ];
+  }
+}
+

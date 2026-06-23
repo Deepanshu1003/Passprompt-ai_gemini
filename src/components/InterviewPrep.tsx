@@ -21,7 +21,13 @@ import {
   Database,
   Info,
   ChevronLeft,
-  GraduationCap
+  GraduationCap,
+  Sun,
+  Moon,
+  MessageCircle,
+  User,
+  FileUp,
+  UploadCloud
 } from 'lucide-react';
 import { InterviewPlan, InterviewTopicDetails, InterviewQuizScore, ChatMessage } from '../types';
 import { getOrCreateDeviceId, getActiveGeminiModel } from '../offlineCache';
@@ -36,13 +42,42 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
   const [plans, setPlans] = useState<InterviewPlan[]>([]);
   const [activePlan, setActivePlan] = useState<InterviewPlan | null>(null);
   
+  // Theme state: default to dark, saved in local storage
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const saved = localStorage.getItem('interview_theme');
+    return saved !== 'light';
+  });
+
   // Target active screen page
   const [interviewScreen, setInterviewScreen] = useState<'plan' | 'bento' | 'topic'>('plan');
   
+  // New Interactive Multi-Step Setup Wizard states
+  const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
+  const [resumeText, setResumeText] = useState('');
+  const [isSuggestingRoles, setIsSuggestingRoles] = useState(false);
+  const [suggestedRoles, setSuggestedRoles] = useState<Array<{
+    roleName: string;
+    experienceTier: string;
+    fitReasoning: string;
+    keySkillsHighlight: string[];
+  }>>([]);
+  const [targetKeywords, setTargetKeywords] = useState('');
+  const [draftTopics, setDraftTopics] = useState<Array<{ id: string; name: string; description: string }>>([]);
+  const [isDraftLoading, setIsDraftLoading] = useState(false);
+  const [successPlanId, setSuccessPlanId] = useState<string | null>(null);
+
   // Creation form states
   const [targetRole, setTargetRole] = useState('Senior Software Engineer');
   const [experienceLevel, setExperienceLevel] = useState('Senior');
+  const [profileBackground, setProfileBackground] = useState('');
   const [customPlanText, setCustomPlanText] = useState('');
+  
+  // Custom plan source modes
+  const [planSource, setPlanSource] = useState<'ai_chat' | 'paste_or_upload'>('ai_chat');
+  const [pastedPlanText, setPastedPlanText] = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [aiEditPrompt, setAiEditPrompt] = useState('');
+  const [isEditingPlan, setIsEditingPlan] = useState(false);
   
   // UI states
   const [navTab, setNavTab] = useState<'build' | 'plans'>('build');
@@ -55,23 +90,71 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
   const [selectedTopic, setSelectedTopic] = useState<InterviewTopicDetails | null>(null);
   const [topicNotes, setTopicNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [topicTab, setTopicTab] = useState<'chat' | 'notes'>('chat');
   
-  // Custom Topic-Quiz state
+  // Topic-specific Chat states
+  const [topicChatInput, setTopicChatInput] = useState('');
+  const [isTopicChatting, setIsTopicChatting] = useState(false);
+
+  // Progressive saved Topic-Quiz state
   const [isQuizLoading, setIsQuizLoading] = useState(false);
-  const [quizQuestions, setQuizQuestions] = useState<any[]>([]); // 10 questions
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([]); 
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
   const [selectedQuizAnswer, setSelectedQuizAnswer] = useState<string | null>(null);
   const [isQuizAnswerSubmitted, setIsQuizAnswerSubmitted] = useState(false);
   const [quizScoreCounter, setQuizScoreCounter] = useState(0);
   const [scoreHistory, setScoreHistory] = useState<InterviewQuizScore[]>([]);
   const [showQuizResult, setShowQuizResult] = useState(false);
+  const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
+
+  // Refs for Chat scrolls
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const topicChatEndRef = useRef<HTMLDivElement>(null);
+
+  // Sync theme to local storage
+  useEffect(() => {
+    localStorage.setItem('interview_theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
 
   // Load plans on mount
   useEffect(() => {
     fetchInterviewPlans();
   }, [deviceId]);
 
-  // Sync active plan with backend / local saving when topics or scores change
+  // Scroll controls
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatLog]);
+
+  useEffect(() => {
+    topicChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedTopic?.chatHistory, isTopicChatting]);
+
+  useEffect(() => {
+    if (activePlan && activePlan.topics && activePlan.topics.length > 0 && !selectedTopic) {
+      const firstTopic = activePlan.topics[0];
+      setSelectedTopic(firstTopic);
+      setTopicNotes(firstTopic.notes || '');
+      setQuizQuestions(firstTopic.quizQuestions || []);
+      setCurrentQuizIndex(firstTopic.quizCurrentIndex || 0);
+      setSelectedQuizAnswer(firstTopic.quizSelectedAnswer !== undefined ? firstTopic.quizSelectedAnswer : null);
+      setIsQuizAnswerSubmitted(!!firstTopic.quizIsAnswerSubmitted);
+      setQuizScoreCounter(firstTopic.quizScoreCounter || 0);
+      setShowQuizResult(!!firstTopic.quizCompleted);
+      setTopicTab('chat');
+    }
+  }, [activePlan, selectedTopic]);
+
+  // Color schemas defined contextually
+  const thBg = isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-850';
+  const thNavbar = isDark ? 'bg-slate-900 border-b border-slate-800 text-white' : 'bg-white border-b border-slate-200 text-slate-900 shadow-sm';
+  const thPanel = isDark ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-slate-200 shadow-sm';
+  const thCard = isDark ? 'bg-slate-950 border border-slate-850' : 'bg-slate-100 border border-slate-200';
+  const thInput = isDark ? 'bg-slate-950 border border-slate-800 text-slate-250 focus:border-sky-500' : 'bg-stone-50 border border-slate-350 text-slate-800 focus:border-blue-500';
+  const thTextMuted = isDark ? 'text-slate-400' : 'text-slate-600';
+  const thHeading = isDark ? 'text-white' : 'text-slate-900';
+  const thSubHeading = isDark ? 'text-slate-300' : 'text-slate-700';
+
   const fetchInterviewPlans = async () => {
     try {
       const res = await fetch('/api/interview/plans', {
@@ -81,7 +164,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
         const list = await res.json();
         setPlans(list);
         if (list.length > 0 && !activePlan) {
-          // select latest plan by default
+          // Select latest plan by default
           const sorted = [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           setActivePlan(sorted[0]);
           setChatLog(sorted[0].chat_history || []);
@@ -102,6 +185,64 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     setQuizQuestions([]);
     setNavTab('build');
     setInterviewScreen('plan');
+    setSetupStep(1);
+    setResumeText('');
+    setSuggestedRoles([]);
+    setTargetKeywords('');
+    setDraftTopics([]);
+    setSuccessPlanId(null);
+  };
+
+  const handleSuggestRoles = async (manualBioText?: string) => {
+    const textToAnalyze = manualBioText || resumeText || profileBackground;
+    if (!textToAnalyze.trim()) {
+      alert("Please provide some background context, bio, or upload/paste a resume first so the Coach can suggest targeted positions.");
+      return;
+    }
+    setIsSuggestingRoles(true);
+    try {
+      const res = await fetch('/api/interview/suggest-roles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-gemini-model': getActiveGeminiModel()
+        },
+        body: JSON.stringify({ resume_text: textToAnalyze })
+      });
+      if (res.ok) {
+        const roles = await res.json();
+        setSuggestedRoles(roles);
+        setSetupStep(2); // Jump to step 2 selection screen
+      } else {
+        throw new Error('Failure contacting recruiter suggestion system');
+      }
+    } catch (err: any) {
+      console.error(err);
+      // Fallback templates as requested to ensure zero down-time
+      setSuggestedRoles([
+        {
+          roleName: "Senior Fullstack Engineer",
+          experienceTier: "Senior",
+          fitReasoning: "Based on general web engineering patterns found in your candidate profile.",
+          keySkillsHighlight: ["React 19 / TypeScript", "Node.js (Express)", "Relational Databases", "High-Performance Assets"]
+        },
+        {
+          roleName: "Staff Platform Architect",
+          experienceTier: "Principal/Lead",
+          fitReasoning: "Matches multi-system design, cloud container setups, and performance requirements.",
+          keySkillsHighlight: ["Express Dev Middlewares", "Scalable Schema Migrations", "API Security Proxying", "Docker Containers Infrastructure"]
+        },
+        {
+          roleName: "Technical Product Manager",
+          experienceTier: "Mid-Level",
+          fitReasoning: "Suited for engineering estimation, roadmap scheduling, and technical strategy.",
+          keySkillsHighlight: ["STAR Method", "Prioritization Matrices", "Systems Estimation", "Stakeholder Alignment"]
+        }
+      ]);
+      setSetupStep(2);
+    } finally {
+      setIsSuggestingRoles(false);
+    }
   };
 
   const handleSavePlanToDb = async (updatedPlan: InterviewPlan) => {
@@ -116,13 +257,92 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
       });
       if (res.ok) {
         const saved = await res.json();
-        // Update local arrays
         setPlans(prev => prev.map(p => p.id === saved.id ? saved : p));
         setActivePlan(saved);
       }
     } catch (err) {
       console.error('Failed to save plan to database:', err);
     }
+  };
+
+  const handleTriggerConsultWithMessage = async (suggestMsg: string, roleInput: string, levelInput: string) => {
+    setIsConsulting(true);
+    const updatedLog: ChatMessage[] = [...chatLog, { role: 'user', content: suggestMsg }];
+    setChatLog(updatedLog);
+
+    try {
+      const res = await fetch('/api/interview/consult', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-gemini-model': getActiveGeminiModel()
+        },
+        body: JSON.stringify({
+          chat_history: chatLog,
+          user_message: suggestMsg,
+          role: roleInput,
+          experience_level: levelInput
+        })
+      });
+
+      if (!res.ok) throw new Error('Streaming connection failed');
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let aiResponseText = '';
+
+      setChatLog(prev => [...prev, { role: 'ai', content: '' }]);
+
+      while (reader) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              if (data.text) {
+                aiResponseText += data.text;
+                setChatLog(prev => {
+                  const copy = [...prev];
+                  const last = copy[copy.length - 1];
+                  if (last && last.role === 'ai') {
+                    last.content = aiResponseText;
+                  }
+                  return copy;
+                });
+              }
+            } catch {}
+          }
+        }
+      }
+
+      if (activePlan) {
+        const finalPlan: InterviewPlan = {
+          ...activePlan,
+          chat_history: [...updatedLog, { role: 'ai' as const, content: aiResponseText }]
+        };
+        await handleSavePlanToDb(finalPlan);
+      }
+
+    } catch (err: any) {
+      console.error('Chat consult failed:', err);
+      setChatLog(prev => [...prev, { role: 'ai', content: `Sorry, there was an issue contacting the virtual coach: ${err.message || err}` }]);
+    } finally {
+      setIsConsulting(false);
+    }
+  };
+
+  const handleApplySuggestion = async (sug: { role: string; level: string; desc: string; extra: string }) => {
+    setTargetRole(sug.role);
+    setExperienceLevel(sug.level);
+    setCustomPlanText(sug.extra);
+    
+    const msg = `Let's craft a structured roadmap for a ${sug.level} tier ${sug.role} role. Focus primarily on: ${sug.extra}`;
+    await handleTriggerConsultWithMessage(msg, sug.role, sug.level);
   };
 
   // Conversational consultant handle
@@ -187,7 +407,6 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
         }
       }
 
-      // If activePlan already exists, update chat log inside plan
       if (activePlan) {
         const finalPlan: InterviewPlan = {
           ...activePlan,
@@ -205,14 +424,18 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
   };
 
   // Build / Finalize Topics Bento grid
-  const handleFinalizeSyllabusSchedules = async () => {
+  const handleFinalizeSyllabusSchedules = async (pastedText?: string) => {
     setIsGenerating(true);
     setSelectedTopic(null);
     setQuizQuestions([]);
 
-    // Collect any specification guidelines from the chat log
-    const chatInstructions = chatLog.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-    const customInstructionSet = `${customPlanText}\n\nChat coaching directives:\n${chatInstructions}`;
+    let customInstructionSet = "";
+    if (pastedText) {
+      customInstructionSet = `Candidate uploaded/pasted an existing study plan to import, conforming to: \n"""\n${pastedText}\n"""\n\nEnsure you parse this carefully and structure it inside the topics list. Maintain focus on Candidate Profile Details:\nRole: ${targetRole}\nExperience: ${experienceLevel}\nBackground Profile: ${profileBackground}`;
+    } else {
+      const chatInstructions = chatLog.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+      customInstructionSet = `Candidate Profile details:\n${profileBackground}\n\nCoaching Directives & Chat history summary:\n${chatInstructions}\n\nCustom Directives: ${customPlanText}`;
+    }
 
     try {
       const res = await fetch('/api/interview/finalize', {
@@ -233,28 +456,89 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
       const topics = await res.json();
       
       const newPlan: InterviewPlan = {
-        id: activePlan?.id || crypto.randomUUID(),
+        id: crypto.randomUUID(),
         device_id: deviceId,
         role: targetRole,
         experience_level: experienceLevel,
         created_at: new Date().toISOString(),
         finalized: true,
-        chat_history: chatLog,
+        chat_history: chatLog, // Saved in backend/JSON state securely
         topics: topics,
-        scores: scoreHistory
+        scores: []
       };
 
       await handleSavePlanToDb(newPlan);
-      setActivePlan(newPlan);
-      // Re-fetch all plans to update sidebar selection
+      setSuccessPlanId(newPlan.id);
       await fetchInterviewPlans();
-      setInterviewScreen('bento');
+      
+      // RESET ALL CREATION SELECTIONS & CHAT AS REQUESTED BY THE USER:
+      setChatLog([]);
+      setTargetRole('Senior Software Engineer');
+      setExperienceLevel('Senior');
+      setProfileBackground('');
+      setCustomPlanText('');
+      setPastedPlanText('');
+      setResumeText('');
+      setUploadedFileName('');
+      setSuggestedRoles([]);
+      setTargetKeywords('');
+      setDraftTopics([]);
+      setPlanSource('ai_chat');
+
+      // Set to step 4 (locked syllabus completion page)
+      setSetupStep(4);
 
     } catch (err) {
       console.error('Failed to finalize interview schedule bento:', err);
       alert('Failed to generate customized syllabus. Using robust default topics mapping');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Edit existing study plan topics using AI
+  const handleEditPlanWithAI = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activePlan || !aiEditPrompt.trim() || isEditingPlan) return;
+
+    setIsEditingPlan(true);
+    const modification = aiEditPrompt.trim();
+    setAiEditPrompt('');
+
+    try {
+      const res = await fetch('/api/interview/edit-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-gemini-model': getActiveGeminiModel()
+        },
+        body: JSON.stringify({
+          current_topics: activePlan.topics,
+          modification_prompt: modification,
+          role: activePlan.role,
+          experience_level: activePlan.experience_level
+        })
+      });
+
+      if (!res.ok) throw new Error('Editing plan request failed');
+
+      const updatedTopics = await res.json();
+      
+      const updatedPlan: InterviewPlan = {
+        ...activePlan,
+        topics: updatedTopics
+      };
+
+      await handleSavePlanToDb(updatedPlan);
+      setActivePlan(updatedPlan);
+      await fetchInterviewPlans();
+      
+      alert('Syllabus updated successfully using AI!');
+    } catch (err: any) {
+      console.error('Failed to edit plan with AI:', err);
+      alert('Failed to modify study roadmap: ' + (err.message || err));
+    } finally {
+      setIsEditingPlan(false);
     }
   };
 
@@ -302,6 +586,49 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     }
   };
 
+  // Helper: saving active quiz state to DB
+  const saveQuizStateToPlan = async (
+    questions: any[],
+    index: number,
+    ans: string | null,
+    submitted: boolean,
+    score: number,
+    done: boolean
+  ) => {
+    if (!activePlan || !selectedTopic) return;
+    
+    const updatedTopics = activePlan.topics.map(t => {
+      if (t.id === selectedTopic.id) {
+        return {
+          ...t,
+          quizQuestions: questions,
+          quizCurrentIndex: index,
+          quizSelectedAnswer: ans,
+          quizIsAnswerSubmitted: submitted,
+          quizScoreCounter: score,
+          quizCompleted: done
+        };
+      }
+      return t;
+    });
+
+    const updatedPlan = {
+      ...activePlan,
+      topics: updatedTopics
+    };
+
+    await handleSavePlanToDb(updatedPlan);
+    setSelectedTopic(prev => prev ? {
+      ...prev,
+      quizQuestions: questions,
+      quizCurrentIndex: index,
+      quizSelectedAnswer: ans,
+      quizIsAnswerSubmitted: submitted,
+      quizScoreCounter: score,
+      quizCompleted: done
+    } : null);
+  };
+
   // Quiz initiation
   const handleStartTopicQuiz = async (topic: InterviewTopicDetails) => {
     setIsQuizLoading(true);
@@ -328,12 +655,13 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
       if (res.ok) {
         const questions = await res.json();
         setQuizQuestions(questions);
+        await saveQuizStateToPlan(questions, 0, null, false, 0, false);
       } else {
         throw new Error('Failed to fetch customized quiz questions');
       }
     } catch (err) {
       console.error(err);
-      alert('Error fetching quiz. Loading localized safety questions.');
+      alert('Error fetching quiz.');
     } finally {
       setIsQuizLoading(false);
     }
@@ -344,24 +672,32 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     setSelectedQuizAnswer(letter);
   };
 
-  const handleSubmitQuizAnswer = () => {
+  const handleSubmitQuizAnswer = async () => {
     if (!selectedQuizAnswer || isQuizAnswerSubmitted) return;
-    setIsQuizAnswerSubmitted(true);
-
+    
+    let isCorrect = false;
     const currentQuestion = quizQuestions[currentQuizIndex];
     if (selectedQuizAnswer === currentQuestion.correct_answer) {
-      setQuizScoreCounter(prev => prev + 1);
+      isCorrect = true;
     }
+    const newScore = isCorrect ? quizScoreCounter + 1 : quizScoreCounter;
+    
+    setIsQuizAnswerSubmitted(true);
+    setQuizScoreCounter(newScore);
+
+    await saveQuizStateToPlan(quizQuestions, currentQuizIndex, selectedQuizAnswer, true, newScore, false);
   };
 
-  const handleNextQuizQuestion = () => {
+  const handleNextQuizQuestion = async () => {
     if (currentQuizIndex < quizQuestions.length - 1) {
-      setCurrentQuizIndex(prev => prev + 1);
+      const nextIdx = currentQuizIndex + 1;
+      setCurrentQuizIndex(nextIdx);
       setSelectedQuizAnswer(null);
       setIsQuizAnswerSubmitted(false);
+      await saveQuizStateToPlan(quizQuestions, nextIdx, null, false, quizScoreCounter, false);
     } else {
-      // Quiz complete! Record Episodic memory logs
       setShowQuizResult(true);
+      await saveQuizStateToPlan(quizQuestions, currentQuizIndex, selectedQuizAnswer, true, quizScoreCounter, true);
       recordQuizScoreToMemory();
     }
   };
@@ -387,350 +723,1378 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     await handleSavePlanToDb(updatedPlan);
   };
 
+  const selectTopicAndResetStates = (topic: any) => {
+    setSelectedTopic(topic);
+    setActiveCardIndex(0);
+    setTopicNotes(topic.notes || '');
+    setQuizQuestions(topic.quizQuestions || []);
+    setCurrentQuizIndex(topic.quizCurrentIndex || 0);
+    setSelectedQuizAnswer(topic.quizSelectedAnswer !== undefined ? topic.quizSelectedAnswer : null);
+    setIsQuizAnswerSubmitted(!!topic.quizIsAnswerSubmitted);
+    setQuizScoreCounter(topic.quizScoreCounter || 0);
+    setShowQuizResult(!!topic.quizCompleted);
+    setTopicChatInput('');
+    setTopicTab('chat');
+  };
+
   const handleSelectPlan = (plan: InterviewPlan) => {
     setActivePlan(plan);
     setChatLog(plan.chat_history || []);
     setScoreHistory(plan.scores || []);
-    setSelectedTopic(null);
     setQuizQuestions([]);
     setNavTab('plans');
     setInterviewScreen('bento');
+    if (plan.topics && plan.topics.length > 0) {
+      selectTopicAndResetStates(plan.topics[0]);
+    } else {
+      setSelectedTopic(null);
+    }
+  };
+
+  // Conversational Topic Coach Stream handles
+  const handleTopicChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!topicChatInput.trim() || isTopicChatting || !activePlan || !selectedTopic) return;
+
+    const userMsg = topicChatInput.trim();
+    setTopicChatInput('');
+    setIsTopicChatting(true);
+
+    const currentHistory = selectedTopic.chatHistory || [];
+    const updatedHistory = [...currentHistory, { role: 'user' as const, content: userMsg }];
+
+    // Temporarily update UI chat history so the user sees their query instantly
+    const updatedSelectedTopic = {
+      ...selectedTopic,
+      chatHistory: updatedHistory
+    };
+    setSelectedTopic(updatedSelectedTopic);
+
+    const updatedTopics = activePlan.topics.map(t => {
+      if (t.id === selectedTopic.id) {
+        return updatedSelectedTopic;
+      }
+      return t;
+    });
+    const tempPlan = { ...activePlan, topics: updatedTopics };
+    setActivePlan(tempPlan);
+
+    try {
+      const res = await fetch('/api/interview/topic-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-gemini-model': getActiveGeminiModel()
+        },
+        body: JSON.stringify({
+          topic_name: selectedTopic.name,
+          topic_description: selectedTopic.description,
+          chat_history: currentHistory,
+          user_message: userMsg
+        })
+      });
+
+      if (!res.ok) throw new Error('Streaming connection failed');
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let aiResponseText = '';
+
+      // Initialize AI bubble in history
+      const withAiBubble = [...updatedHistory, { role: 'ai' as const, content: '' }];
+      setSelectedTopic(prev => prev ? { ...prev, chatHistory: withAiBubble } : null);
+
+      while (reader) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              if (data.text) {
+                aiResponseText += data.text;
+                setSelectedTopic(prev => {
+                  if (!prev) return null;
+                  const copy = [...(prev.chatHistory || [])];
+                  const last = copy[copy.length - 1];
+                  if (last && last.role === 'ai') {
+                    last.content = aiResponseText;
+                  }
+                  return { ...prev, chatHistory: copy };
+                });
+              }
+            } catch {}
+          }
+        }
+      }
+
+      // Save finalized chat history to database
+      const finalHistory = [...updatedHistory, { role: 'ai' as const, content: aiResponseText }];
+      
+      const savedTopics = activePlan.topics.map(t => {
+        if (t.id === selectedTopic.id) {
+          return {
+            ...t,
+            chatHistory: finalHistory
+          };
+        }
+        return t;
+      });
+
+      const finalPlan = {
+        ...activePlan,
+        topics: savedTopics
+      };
+
+      await handleSavePlanToDb(finalPlan);
+      setSelectedTopic(prev => prev ? { ...prev, chatHistory: finalHistory } : null);
+
+    } catch (err: any) {
+      console.error('Topic chat failed:', err);
+      setSelectedTopic(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          chatHistory: [...updatedHistory, { role: 'ai' as const, content: `Error communicating with AI Tutor: ${err.message || err}` }]
+        };
+      });
+    } finally {
+      setIsTopicChatting(false);
+    }
   };
 
   // PAGE 1: PREPARE AND CONSULT A NEW PLAN OR LOAD AN EXISTING COHERENT PLAN
   const renderPlanScreen = () => {
+    // 3 Default starting templates in case user is in a hurry
+    const baseTemplates = [
+      {
+        role: "Senior React Architect",
+        level: "Senior",
+        desc: "Vite server modules, Tailwind tokens, and custom react performance hooks",
+        extra: "Expert frontend performance, dynamic hydration, responsive design system tokens, and lazy layouts"
+      },
+      {
+        role: "Backend Platform Engineer",
+        level: "Lead/Principal",
+        desc: "Go microservices, Docker container routing, and Postgres database schemas",
+        extra: "Ultra high-performance APIs, transaction isolations, redis caching, and cluster deployment workflows"
+      },
+      {
+        role: "Technical Product Manager",
+        level: "Mid-Level",
+        desc: "STAR strategy, scaling estimations, and agile product roadmap estimation",
+        extra: "Engineering estimations, product life cycles, backlog prioritization matrix, and STAR interview blueprinting"
+      }
+    ];
+
+    const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        if (text) {
+          setResumeText(text);
+          setProfileBackground(text.substring(0, 300) + "...");
+          // Trigger recruiter recommendation instantly
+          handleSuggestRoles(text);
+        }
+      };
+      reader.readAsText(file);
+    };
+
     return (
-      <div className="flex-grow max-w-6xl mx-auto w-full px-4 py-8 sm:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="flex-grow max-w-7xl mx-auto w-full px-4 py-8 sm:py-12 flex flex-col gap-8">
         
-        {/* LEFT PANEL: CONFIG & AI CONSULTING COACH */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
-          <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col gap-6">
-            <div className="border-b border-slate-800 pb-4">
-              <span className="text-[10px] bg-sky-500/10 border border-sky-500/20 text-sky-400 px-2.5 py-0.5 rounded uppercase font-black tracking-wide mb-2 inline-block font-mono">1. Career Planner</span>
-              <h3 className="text-xl font-black text-slate-100 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-sky-400" /> Syllabus Design Room
-              </h3>
-              <p className="text-xs text-slate-400 font-semibold leading-relaxed mt-1">
-                Configure your target profession &amp; experience tier. Chat naturally with the AI Prep Coach to include technology segments, then launch your bento schedule roadmap.
-              </p>
+        {/* PROGRESSIVE STEPS TRACKER BAR */}
+        <div className={`p-5 rounded-2xl ${thPanel} flex flex-col sm:flex-row items-center justify-between gap-4`}>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[9px] bg-sky-500/10 text-sky-400 p-1 px-2.5 rounded font-black uppercase tracking-wider font-mono self-start">
+              Roadmap Architect
+            </span>
+            <h2 className={`text-base font-black uppercase tracking-tight mt-1 ${thHeading}`}>
+              Configure Career Roadmap Syllabus
+            </h2>
+          </div>
+
+          {/* Stepper bubbles */}
+          <div className="flex items-center gap-2 sm:gap-4 font-mono text-[10px] font-black uppercase">
+            <div className={`flex items-center gap-1.5 transition-all ${setupStep === 1 ? 'text-sky-450 border-b-2 border-sky-400 pb-0.5' : 'text-slate-500'}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] ${setupStep === 1 ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>1</span>
+              <span>Context &amp; CV</span>
             </div>
-
-            {/* TARGET SECTOR FORM */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target profession</span>
-                <input
-                  type="text"
-                  value={targetRole}
-                  onChange={(e) => setTargetRole(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 focus:border-sky-500 outline-none p-3 rounded-xl text-xs sm:text-sm font-bold text-slate-200"
-                  placeholder="e.g. Senior Software Architect"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Experience levels</span>
-                <select
-                  value={experienceLevel}
-                  onChange={(e) => setExperienceLevel(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 focus:border-sky-500 outline-none p-3 rounded-xl text-xs sm:text-sm font-bold text-slate-200 cursor-pointer"
-                >
-                  <option value="Junior">Junior (0-2 YOE)</option>
-                  <option value="Mid-Level">Mid-Level (2-5 YOE)</option>
-                  <option value="Senior">Senior (5-8 YOE)</option>
-                  <option value="Lead/Principal">Principal/Lead (8+ YOE)</option>
-                </select>
-              </div>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-700" />
+            <div className={`flex items-center gap-1.5 transition-all ${setupStep === 2 ? 'text-sky-450 border-b-2 border-sky-400 pb-0.5' : 'text-slate-500'}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] ${setupStep === 2 ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>2</span>
+              <span>Matched Roles</span>
             </div>
-
-            {/* SYLLABUS DISCOVERY */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex justify-between items-center">
-                <span>Upload / Paste Preparation Syllabus (Optional)</span>
-              </span>
-              <textarea
-                value={customPlanText}
-                onChange={(e) => setCustomPlanText(e.target.value)}
-                className="bg-slate-950 border border-slate-800 focus:border-sky-500 outline-none p-3 rounded-xl text-xs font-semibold text-slate-300 h-20 resize-none leading-relaxed"
-                placeholder="Paste customized guidelines, key system architectures, or previous schedules..."
-              />
+            <ChevronRight className="w-3.5 h-3.5 text-slate-700" />
+            <div className={`flex items-center gap-1.5 transition-all ${setupStep === 3 ? 'text-sky-450 border-b-2 border-sky-400 pb-0.5' : 'text-slate-500'}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] ${setupStep === 3 ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>3</span>
+              <span>Co-pilot Prep</span>
             </div>
-
-            {/* CHAT CHANNELS */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">AI Coach Consulting conversation</span>
-              <div className="bg-slate-950 border border-slate-850 rounded-xl p-3 h-32 overflow-y-auto flex flex-col gap-3 leading-relaxed text-xs">
-                {chatLog.length === 0 ? (
-                  <p className="text-slate-500 font-medium italic text-center my-auto">Propose custom technology domains to the Coach to customize details dynamically!</p>
-                ) : (
-                  chatLog.map((chat, idx) => (
-                    <div 
-                      key={idx}
-                      className={`p-2 rounded-xl max-w-[90%] font-semibold ${
-                        chat.role === 'user' 
-                          ? 'bg-sky-500/10 text-sky-450 self-end border border-sky-500/20' 
-                          : 'bg-slate-900 text-slate-350 self-start border border-slate-800'
-                      }`}
-                    >
-                      <span className="text-[9px] block opacity-40 font-black mb-1">
-                        {chat.role === 'user' ? 'STUDENT' : 'COACH ARCHITECT'}
-                      </span>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{chat.content}</ReactMarkdown>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <form onSubmit={handleConsultChat} className="flex gap-2 mt-2">
-                <input
-                  type="text"
-                  value={chatMessageInput}
-                  onChange={(e) => setChatMessageInput(e.target.value)}
-                  placeholder="Ask Coach to add specific frameworks, testing methodologies..."
-                  className="flex-grow bg-slate-950 border border-slate-800 focus:border-sky-550 focus:outline-none p-2.5 rounded-xl text-xs font-semibold text-slate-200"
-                />
-                <button
-                  type="submit"
-                  disabled={isConsulting}
-                  className="bg-slate-800 hover:bg-slate-750 text-sky-400 p-2.5 rounded-xl border-none cursor-pointer"
-                >
-                  {isConsulting ? (
-                    <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </button>
-              </form>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-700" />
+            <div className={`flex items-center gap-1.5 transition-all ${setupStep === 4 ? 'text-emerald-400 border-b-2 border-emerald-400 pb-0.5' : 'text-slate-500'}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] ${setupStep === 4 ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>4</span>
+              <span>Ready</span>
             </div>
-
-            {/* FINALIZE DISCOVERY ACT */}
-            <button
-              type="button"
-              onClick={handleFinalizeSyllabusSchedules}
-              disabled={isGenerating}
-              className={`w-full py-4 rounded-xl font-black text-xs sm:text-sm border-none transition-all cursor-pointer flex items-center justify-center gap-2 tracking-wider uppercase
-                ${isGenerating 
-                  ? 'bg-slate-800 text-slate-500 font-black cursor-wait shadow-none' 
-                  : 'bg-sky-400 hover:bg-sky-350 text-slate-950 shadow-md shadow-sky-450/25'
-                }
-              `}
-            >
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
-                  CONSTRUCTING 11-TOPIC MATRIX...
-                </>
-              ) : (
-                <>
-                  <Layout className="w-4.5 h-4.5 shrink-0" />
-                  Finalize Plan &amp; Unlock Bento board
-                </>
-              )}
-            </button>
           </div>
         </div>
 
-        {/* RIGHT PANEL: PREVIOUSLY SAVED SCHEDULERS & CODES */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl flex flex-col gap-4">
-            <div>
-              <span className="text-[10px] font-extrabold uppercase bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded tracking-wide mb-1.5 inline-block font-mono">Study Portal Vault</span>
-              <h4 className="text-base font-black text-slate-100 flex items-center gap-2">
-                <Database className="w-4.5 h-4.5 text-sky-400" /> Previous Preparation Plans
-              </h4>
-              <p className="text-xs text-slate-450 leading-relaxed font-semibold mt-1">
-                Select an existing archived workspace to review its performance, custom recall notes, or assessment grades.
-              </p>
+        {/* STEP 1 PANEL: CONTEXT PROFILE & CV INTAKE */}
+        {setupStep === 1 && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in">
+            <div className="lg:col-span-8 flex flex-col gap-6">
+              <div className={`${thPanel} p-6 sm:p-8 rounded-3xl flex flex-col gap-4 relative overflow-hidden`}>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/5 rounded-full blur-3xl pointer-events-none" />
+                
+                <div>
+                  <h3 className={`text-lg font-black uppercase tracking-tight ${thHeading}`}>
+                    Step 1: Introduce Your Experience or Drag Resume
+                  </h3>
+                  <p className={`text-xs ${thTextMuted} font-semibold mt-1 leading-relaxed`}>
+                    Provide details about your developer experience, tech stacks, or outstanding goals. Or simply drag/paste your plain-text Resume (CSV/MD/TXT) to instantly trigger recruiter analysis!
+                  </p>
+                </div>
+
+                {/* Resume Upload Box */}
+                <div className="border-2 border-dashed border-slate-700/50 hover:border-sky-500/50 rounded-2xl p-6 text-center bg-slate-950/20 relative group transition-colors flex flex-col items-center justify-center h-44">
+                  <input
+                    type="file"
+                    accept=".txt,.text,.md,.string"
+                    onChange={handleResumeUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                  <UploadCloud className="w-9 h-9 text-slate-500 group-hover:text-sky-400 group-hover:scale-110 transition-all duration-300" />
+                  <p className={`text-xs font-black ${thHeading} mt-3`}>
+                    {uploadedFileName ? `Loaded: ${uploadedFileName}` : "Drag & Drop Resume plain-text file here"}
+                  </p>
+                  <p className="text-[10px] text-slate-550 font-semibold mt-1">
+                    Or click here to browse files on your computer (.txt, .text, .md)
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
+                    Or describe your candidate profile yourself (Skills, background, experience level...)
+                  </label>
+                  <textarea
+                    value={profileBackground}
+                    onChange={(e) => setProfileBackground(e.target.value)}
+                    placeholder="e.g. 4+ years of Fullstack development using React, TypeScript, Node.js, and Postgres. Built multiple data visualization dashboards, scaled servers, and handled oauth authentication systems."
+                    className={`${thInput} focus:outline-none p-3.5 rounded-2xl text-xs font-semibold h-32 leading-relaxed resize-none`}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleSuggestRoles()}
+                  disabled={isSuggestingRoles || (!profileBackground.trim() && !resumeText.trim())}
+                  className={`py-3 px-6 rounded-xl font-mono text-[11px] uppercase tracking-wide font-black flex items-center justify-center gap-2 self-start
+                    ${isSuggestingRoles 
+                      ? 'bg-slate-800 text-slate-500 cursor-wait' 
+                      : 'bg-sky-500 hover:bg-sky-450 text-slate-950 cursor-pointer shadow shadow-sky-500/25'
+                    }
+                  `}
+                >
+                  {isSuggestingRoles ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-455" />
+                      Counselor analyzing profile...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                      Suggest Targeted Roles 🔮
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
-            {plans.length === 0 ? (
-              <div className="bg-slate-950/60 p-6 rounded-xl border border-slate-850 text-center flex flex-col items-center gap-2">
-                <Briefcase className="w-8 h-8 text-slate-600 animate-pulse" />
-                <p className="text-xs font-semibold text-slate-500 italic">No previous interview tracks found. Fill of your target specs on the left to initialize!</p>
+            {/* Step 1 right sidebar: Load archive or pick base templates */}
+            <div className="lg:col-span-4 flex flex-col gap-6">
+              {/* STUDY ARCHIVE */}
+              <div className={`${thPanel} p-5 rounded-2xl`}>
+                <span className="text-[9px] bg-emerald-500/10 text-emerald-400 p-0.5 px-2 rounded font-mono font-black uppercase tracking-wider">
+                  Archive Repository
+                </span>
+                <h4 className={`text-xs font-black uppercase tracking-tight mt-2 ${thHeading}`}>
+                  📂 Resume Study Track
+                </h4>
+                <div className="mt-3 flex flex-col gap-1.5">
+                  {plans.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-slate-950/20 text-center text-[10px] text-slate-500 italic font-semibold">
+                      No cached paths found. Generate a profile to catalog archive.
+                    </div>
+                  ) : (
+                    plans.slice(0, 4).map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => handleSelectPlan(p)}
+                        className={`w-full p-2 rounded-lg border text-left flex items-center justify-between text-[10px] font-semibold cursor-pointer hover:bg-sky-500/10 hover:text-sky-400 ${isDark ? 'bg-slate-950 border-slate-850' : 'bg-stone-50 border-slate-200'}`}
+                      >
+                        <span className="truncate uppercase max-w-[70%]">{p.role}</span>
+                        <span className="opacity-60 text-[8px] font-mono shrink-0">{p.experience_level}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
-            ) : (
-              <div className="flex flex-col gap-2 max-h-[225px] overflow-y-auto pr-1">
-                {plans.map((p) => {
-                  const progress = Math.round((p.topics.filter(t => t.completed).length / 11) * 100);
+
+              {/* JUMP START TEMPLATES */}
+              <div className={`${thPanel} p-5 rounded-2xl flex flex-col gap-2`}>
+                <h4 className={`text-xs font-black uppercase tracking-tight ${thHeading}`}>
+                  ⚡ Jump-Start Templates
+                </h4>
+                <p className="text-[9px] text-slate-500 font-semibold leading-tight">
+                  No resume on hand? Select an executive template profile instantly:
+                </p>
+                <div className="flex flex-col gap-2 mt-1">
+                  {baseTemplates.map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setTargetRole(item.role);
+                        setExperienceLevel(item.level);
+                        setProfileBackground(item.extra);
+                        setSetupStep(2);
+                      }}
+                      className={`p-2.5 rounded-xl text-left text-[10px] cursor-pointer transition-all hover:scale-102 border ${isDark ? 'bg-slate-950 border-slate-850 hover:bg-slate-900' : 'bg-stone-50 border-slate-205 hover:bg-stone-100'}`}
+                    >
+                      <div className="font-extrabold uppercase text-sky-450">{item.role}</div>
+                      <div className="text-[8px] text-slate-500 font-mono mt-0.5">{item.level} Tier</div>
+                      <div className="text-[9px] opacity-70 line-clamp-1 italic mt-1 font-semibold">{item.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2 PANEL: SUGGESTIONS CARDS & PRECISE LOCKED ROLE */}
+        {setupStep === 2 && (
+          <div className="flex flex-col gap-6 animate-fade-in">
+            <div className={`${thPanel} p-6 rounded-3xl relative overflow-hidden flex flex-col gap-6`}>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/5 rounded-full blur-3xl pointer-events-none" />
+              
+              <div>
+                <h3 className={`text-lg font-black uppercase tracking-tight ${thHeading}`}>
+                  Step 2: Review Suggested Targeted Roles
+                </h3>
+                <p className={`text-xs ${thTextMuted} font-semibold leading-relaxed mt-1`}>
+                  Gemini Careerrecruiter simulated candidate matches from your profile credentials. Review the fit suggestions, select a matching targeted title, and customize details manually below.
+                </p>
+              </div>
+
+              {/* RECOMMENDED RECRUITER TILES GRID */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {suggestedRoles.map((sug, idx) => {
+                  const isSelected = targetRole === sug.roleName;
                   return (
                     <button
-                      key={p.id}
+                      key={idx}
                       type="button"
-                      onClick={() => handleSelectPlan(p)}
-                      className={`w-full p-3.5 rounded-xl border flex items-center justify-between text-left transition-all text-xs font-bold cursor-pointer group ${
-                        activePlan?.id === p.id 
-                          ? 'bg-sky-500/10 border-sky-400 text-sky-400' 
-                          : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-350 hover:border-slate-700'
-                      }`}
+                      onClick={() => {
+                        setTargetRole(sug.roleName);
+                        setExperienceLevel(sug.experienceTier);
+                        setTargetKeywords(sug.keySkillsHighlight.join(", "));
+                      }}
+                      className={`p-5 rounded-2xl border text-left transition-all relative flex flex-col justify-between cursor-pointer min-h-[160px] group hover:scale-[1.01]
+                        ${isSelected 
+                          ? 'bg-sky-500/10 border-sky-400 text-sky-450 ring-2 ring-sky-400/20' 
+                          : `${isDark ? 'bg-slate-955 border-slate-850 hover:bg-slate-900 border-slate-705' : 'bg-stone-50 border-slate-200 hover:bg-stone-100'}`
+                        }
+                      `}
                     >
-                      <div className="min-w-0 pr-3">
-                        <div className="text-slate-100 font-extrabold truncate group-hover:text-sky-300 transition-colors uppercase tracking-tight">{p.role}</div>
-                        <div className="text-[10px] opacity-60 font-semibold uppercase mt-0.5">{p.experience_level} Tier • {p.topics.length} topics</div>
+                      <div className="flex justify-between items-start w-full">
+                        <span className={`text-[8px] font-mono font-black uppercase p-0.5 px-2 rounded ${isSelected ? 'bg-sky-500 text-slate-955 font-black' : 'bg-slate-800 text-slate-400'}`}>
+                          Suggestion #{idx + 1}
+                        </span>
+                        <span className="text-[8px] opacity-75 font-mono uppercase font-black tracking-widest">{sug.experienceTier} level</span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[9px] bg-slate-800 text-slate-400 font-mono px-2 py-0.5 rounded group-hover:bg-slate-900 group-hover:text-sky-400">{progress}%</span>
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-sky-400" />
+
+                      <h4 className={`text-sm font-black mt-2 leading-tight uppercase group-hover:text-sky-400 transition-colors ${isSelected ? 'text-sky-400' : thHeading}`}>
+                        {sug.roleName}
+                      </h4>
+
+                      <p className={`text-[10px] leading-relaxed mt-2 font-semibold flex-grow mr-2 line-clamp-2 italic opacity-80 ${thTextMuted}`}>
+                        "{sug.fitReasoning}"
+                      </p>
+
+                      <div className="flex flex-wrap gap-1 mt-3">
+                        {sug.keySkillsHighlight.map((skill, sIdx) => (
+                          <span key={sIdx} className="text-[8px] font-mono bg-slate-800/80 text-sky-300 px-1.5 py-0.5 rounded border border-slate-700/50">
+                            {skill}
+                          </span>
+                        ))}
                       </div>
                     </button>
                   );
                 })}
               </div>
-            )}
-          </div>
 
-          {/* ACTIVE ANALYTICAL MEMORIES */}
-          <div className="bg-slate-900 border border-slate-850 p-6 rounded-3xl flex flex-col gap-3">
-            <h4 className="text-xs sm:text-sm font-black text-slate-100 flex items-center gap-1.5 border-b border-slate-800 pb-2">
-              <Database className="w-4 h-4 text-emerald-400" /> Active analytical memory engines
-            </h4>
-            
-            <div className="grid grid-cols-1 gap-2.5 text-[10px] font-bold text-slate-400">
-              <div className="flex items-start gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-900/60">
-                <span className="p-0.5 px-1 bg-sky-500/10 text-sky-400 uppercase text-[8px] font-black shrink-0">Short-Term</span>
-                <div>
-                  <div className="text-slate-200">Conversational log logs</div>
-                  <div className="opacity-70 mt-0.5 font-medium">Maintains prompt instructions &amp; custom user requests contextually.</div>
+              {/* REFINEMENT BOX FOR LOCKED CRITERIA */}
+              <div className="border-t border-light-dim dark:border-slate-800 pt-5 mt-2 flex flex-col gap-4">
+                <h4 className={`text-xs font-black uppercase tracking-wider ${thHeading}`}>
+                  ⚙️ Fine-Tune Targets Manually:
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-mono font-black uppercase text-slate-400">Locked Targeted Role Name</label>
+                    <input
+                      type="text"
+                      value={targetRole}
+                      onChange={(e) => setTargetRole(e.target.value)}
+                      className={`${thInput} p-3 rounded-xl text-xs font-black uppercase tracking-wide`}
+                      placeholder="Target Position Name"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-mono font-black uppercase text-slate-400">Experience Tier</label>
+                    <select
+                      value={experienceLevel}
+                      onChange={(e) => setExperienceLevel(e.target.value)}
+                      className={`${thInput} p-3 rounded-xl text-xs font-bold cursor-pointer`}
+                    >
+                      <option value="Junior">Junior (0-2 YOE)</option>
+                      <option value="Mid-Level">Mid-Level (2-5 YOE)</option>
+                      <option value="Senior">Senior (5-8 YOE)</option>
+                      <option value="Principal/Lead">Principal/Lead (8+ YOE)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-mono font-black uppercase text-slate-400">Key Mastery Skills &amp; Keywords</label>
+                    <input
+                      type="text"
+                      value={targetKeywords}
+                      onChange={(e) => setTargetKeywords(e.target.value)}
+                      className={`${thInput} p-3 rounded-xl text-xs font-bold`}
+                      placeholder="e.g. React 19, TypeScript, Express, Vitest"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-900/60">
-                <span className="p-0.5 px-1 bg-amber-500/10 text-amber-400 uppercase text-[8px] font-black shrink-0">Semantic</span>
-                <div>
-                  <div className="text-slate-200">Syllabus structural matrices</div>
-                  <div className="opacity-70 mt-0.5 font-medium">Binds completion checkmarks, study cards note summaries, and bento links.</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-900/60">
-                <span className="p-0.5 px-1 bg-emerald-500/10 text-emerald-400 uppercase text-[8px] font-black shrink-0">Episodic</span>
-                <div>
-                  <div className="text-slate-200">Evaluation assessment scorelogs</div>
-                  <div className="opacity-70 mt-0.5 font-medium">Tracks historical test accuracy of generated 10-Question quizzes.</div>
-                </div>
+              {/* NAVIGATION CONTROLS */}
+              <div className="flex items-center gap-3 mt-2 pr-2">
+                <button
+                  type="button"
+                  onClick={() => setSetupStep(1)}
+                  className="p-3 px-6 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-mono uppercase font-black rounded-lg cursor-pointer"
+                >
+                  ← Back to Step 1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSetupStep(3)}
+                  className="p-3 px-6 bg-sky-500 hover:bg-sky-450 text-slate-950 text-xs font-mono uppercase font-black rounded-lg cursor-pointer ml-auto flex items-center gap-1.5"
+                >
+                  Continue to Step 3 ➜
+                </button>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-      </div>
-    );
-  };
+        {/* STEP 3 PANEL: COPILOT FORMULATION & PRE-DRAFT OPTIMIZATION */}
+        {setupStep === 3 && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in">
+            
+            {/* LEFT 7 PANELS: CONSTRUCT STREAMING ROADMAP */}
+            <div className="lg:col-span-7 flex flex-col gap-6">
+              
+              {/* SUB ROUTING TABS FOR SETUP SOURCE */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPlanSource('ai_chat')}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer flex items-center gap-2 border leading-none ${
+                    planSource === 'ai_chat'
+                      ? 'bg-sky-500/15 border-sky-500/40 text-sky-400'
+                      : 'bg-transparent border-transparent text-slate-400 hover:text-slate-350'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-sky-455" />
+                  Chat with Coach Companion to Outline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlanSource('paste_or_upload')}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer flex items-center gap-2 border leading-none ${
+                    planSource === 'paste_or_upload'
+                      ? 'bg-sky-500/15 border-sky-500/40 text-sky-400'
+                      : 'bg-transparent border-transparent text-slate-400 hover:text-slate-350'
+                  }`}
+                >
+                  <FileUp className="w-4 h-4 text-sky-455" />
+                  Upload Preplanned custom syllabus
+                </button>
+              </div>
 
-  // PAGE 2: THE 11-TOPIC DYNAMIC BENTO BOARD MATRIX
+              {planSource === 'ai_chat' ? (
+                /* CHAT CONTAINER WITH DYNAMIC HEIGHT RESIZING */
+                <div 
+                  className={`p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden transition-all duration-300 shadow-xl ${thPanel}
+                    ${chatLog.length > 3 ? 'min-h-[580px]' : 'min-h-[460px]'}
+                  `}
+                >
+                  <div>
+                    <h4 className={`text-sm font-black flex items-center gap-1.5 tracking-tight ${thHeading}`}>
+                      <Sparkles className="w-4 h-4 text-sky-450 animate-pulse" /> Finalize Outline Conversationally
+                    </h4>
+                    <p className={`text-[10px] leading-snug mt-0.5 ${thTextMuted} font-semibold`}>
+                      Your chatbot acts as a path builder. Tell it your career story or any special modules you want involved, so we lock in outstanding topics.
+                    </p>
+                  </div>
+
+                  {/* ACTIVE SCROLL WORKSPACE */}
+                  <div className={`flex-grow border rounded-xl p-4 overflow-y-auto flex flex-col gap-3 leading-relaxed text-xs h-[280px] ${isDark ? 'bg-slate-950/70 border-slate-850' : 'bg-slate-100 border-slate-205'}`}>
+                    {chatLog.length === 0 ? (
+                      <div className="text-center my-auto p-4 flex flex-col items-center gap-2">
+                        <div className="w-9 h-9 rounded-full bg-sky-500/10 flex items-center justify-center font-bold text-sky-455 text-xs">AI</div>
+                        <p className="font-extrabold text-xs text-sky-450 tracking-wider">CAREER PATH ARCHITECT</p>
+                        <p className="text-[11px] text-slate-500 italic max-w-sm mt-0.5 font-semibold leading-relaxed">
+                          "I am ready! I have your matches for <strong>{targetRole}</strong> of <strong>{experienceLevel}</strong> skill tier. Write below if you have specific frameworks, microservices, database schemas, or STAR resolution techniques you want covered first."
+                        </p>
+                      </div>
+                    ) : (
+                      chatLog.map((chat, idx) => (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-xl max-w-[85%] font-medium ${
+                            chat.role === 'user'
+                              ? 'bg-sky-500/10 text-sky-400 border border-sky-400/20 self-end'
+                              : `${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} text-slate-300 self-start`
+                          }`}
+                        >
+                          <span className="text-[8px] font-mono leading-none block opacity-50 mb-1 font-black">
+                            {chat.role === 'user' ? 'STUDENT SPEC' : 'COACH ARCHITECT'}
+                          </span>
+                          <div className="markdown-body">
+                            <ReactMarkdown>{chat.content}</ReactMarkdown>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    {isConsulting && (
+                      <div className="self-start p-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-sky-400 font-extrabold flex items-center gap-1 animate-pulse">
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Stream compiling roadmap notes...
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* FORM TRIGGER */}
+                  <form onSubmit={handleConsultChat} className="flex gap-2 leading-none mt-auto">
+                    <input
+                      type="text"
+                      value={chatMessageInput}
+                      onChange={(e) => setChatMessageInput(e.target.value)}
+                      placeholder="e.g. Focus on STAR behavioral model and PostgreSQL schema optimizations..."
+                      className={`flex-grow p-3 rounded-xl text-xs font-semibold focus:outline-none ${thInput}`}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isConsulting || !chatMessageInput.trim()}
+                      className="p-3 px-5 bg-sky-500 hover:bg-sky-450 disabled:bg-slate-850 disabled:text-slate-500 text-slate-950 font-black font-mono text-xs uppercase rounded-xl border-none cursor-pointer tracking-wider"
+                    >
+                      Consult
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                /* PASTE STATIC SYLLABUS DIRECTLY */
+                <div className={`${thPanel} p-6 rounded-3xl h-[460px] flex flex-col gap-4 relative overflow-hidden`}>
+                  <div>
+                    <h4 className={`text-sm font-black flex items-center gap-1.5 tracking-tight ${thHeading}`}>
+                      <FileUp className="w-4 h-4 text-sky-450" /> Import Static Structured Plan
+                    </h4>
+                    <p className={`text-[10px] leading-snug mt-0.5 ${thTextMuted} font-semibold`}>
+                      Paste preplanned checklists, text syllabi, or timelines below. The AI will parse details and draft study cards automatically.
+                    </p>
+                  </div>
+
+                  <textarea
+                    value={pastedPlanText}
+                    onChange={(e) => setPastedPlanText(e.target.value)}
+                    placeholder="Paste core learning checklist notes, curriculum parameters or course descriptions here..."
+                    className={`flex-grow p-3.5 focus:outline-none text-xs font-semibold leading-relaxed rounded-2xl resize-none ${thInput}`}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT 5 PANELS: DRAFT OPTIMIZATION & FINALIZE LOCK */}
+            <div className="lg:col-span-5 flex flex-col gap-6">
+              
+              {/* SPECIAL OPTIMIZER DRAWER */}
+              <div className={`${thPanel} p-6 rounded-3xl relative overflow-hidden flex flex-col gap-4`}>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-2xl pointer-events-none" />
+                
+                <div>
+                  <span className="text-[10px] bg-sky-500/10 text-sky-400 p-0.5 px-2 rounded font-mono font-black uppercase tracking-wider">
+                    Execution Stage
+                  </span>
+                  <h4 className={`text-base font-black uppercase mt-2 ${thHeading}`}>
+                    Review &amp; Lock Syllabus
+                  </h4>
+                  <p className={`text-[11px] ${thTextMuted} leading-relaxed font-semibold mt-1`}>
+                    This locks in a comprehensive checklist of <strong>8 to 15 key topics</strong> tailored specifically to your input configuration structure.
+                  </p>
+                </div>
+
+                {/* Additional custom specifications input */}
+                <div className="flex flex-col gap-1 border-t border-light-dim dark:border-slate-800 pt-3">
+                  <label className="text-[8px] font-black uppercase text-slate-550 font-mono">Custom study limitations / Notes</label>
+                  <textarea
+                    value={customPlanText}
+                    onChange={(e) => setCustomPlanText(e.target.value)}
+                    placeholder="e.g. Target Vitest and Star Behavioral methods primarily. Maximize Go microservice optimizations."
+                    className={`p-2.5 focus:outline-none text-xs font-semibold rounded-xl leading-relaxed resize-none h-20 ${thInput}`}
+                  />
+                </div>
+
+                {/* DRAFT TOPICS COMPILATION STATUS */}
+                <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/40 text-[10px] text-slate-400 font-semibold leading-relaxed">
+                  📘 Profile Scope Summary:<br />
+                  <span className="text-sky-300 uppercase font-bold">{targetRole} ({experienceLevel})</span><br />
+                  <span>Configured Skills: {targetKeywords || "General Recruiters Target Standard"}</span>
+                </div>
+
+                {/* COMPILE INITIATOR BTN */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (planSource === 'paste_or_upload' && !pastedPlanText.trim()) {
+                      alert('Please paste some study plan checklist to compile.');
+                      return;
+                    }
+                    handleFinalizeSyllabusSchedules(planSource === 'paste_or_upload' ? pastedPlanText : undefined);
+                  }}
+                  disabled={isGenerating}
+                  className={`w-full py-4 text-xs font-mono font-black uppercase tracking-widest rounded-xl transition-all border-none flex items-center justify-center gap-2 shadow-lg
+                    ${isGenerating 
+                      ? 'bg-slate-800 text-slate-500 font-bold cursor-wait' 
+                      : 'bg-gradient-to-r from-sky-500 to-sky-600 hover:sky-450 text-slate-950 shadow-sky-500/25'
+                    }
+                  `}
+                >
+                  {isGenerating ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-400" />
+                      GENERATING 8-15 TOPICS ROADMAP...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-slate-950" />
+                      Compile Premium Study Syllabus 🚀
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isGenerating}
+                  onClick={() => setSetupStep(2)}
+                  className="w-full py-2 bg-slate-850 hover:bg-slate-800 text-slate-350 text-[10px] font-mono font-black uppercase rounded-lg cursor-pointer text-center border-none"
+                >
+                  ← Back to Step 2
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4 PANEL: FINAL SUCCESS CONFIRMATION & RESET */}
+        {setupStep === 4 && (
+          <div className="max-w-xl mx-auto w-full animate-fade-in py-8">
+            <div className={`p-8 rounded-3xl ${thPanel} flex flex-col items-center text-center gap-6 shadow-2xl relative overflow-hidden border-2 border-sky-400/35`}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/40 flex items-center justify-center animate-bounce">
+                <CheckCircle2 className="w-9 h-9" />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 p-0.5 px-3 rounded uppercase font-black tracking-widest self-center mb-1">
+                  Compilation Lock ✓
+                </span>
+                <h3 className={`text-xl font-black uppercase tracking-tight ${thHeading}`}>
+                  Syllabus Architect Complete!
+                </h3>
+                <p className={`text-xs ${thTextMuted} font-semibold leading-relaxed max-w-sm mx-auto`}>
+                  We successfully parsed your candidate profile details, optimized learning requirements conversationally, formatted all sub-topics checklists, and compiled your unique <strong>8 to 15 modular prep chapters</strong>.
+                </p>
+              </div>
+
+              {/* Memory parameters visualization */}
+              <div className="w-full p-4.5 bg-slate-950/50 rounded-2xl border border-slate-850 text-left flex flex-col gap-1.5 font-sans leading-relaxed text-[11px] font-semibold text-slate-400">
+                <div className="text-[10px] font-black uppercase text-slate-550 tracking-wider font-mono border-b border-slate-900 pb-1.5 mb-1 flex items-center gap-1">
+                  🧠 SECURE CANDIDATE PROFILE MEMORY VAULT
+                </div>
+                <div className="flex justify-between items-center bg-slate-900/40 p-1 px-2 rounded text-slate-300">
+                  <span>Profile State:</span>
+                  <span className="text-sky-300 font-bold">SAVED IN DB</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-900/40 p-1 px-2 rounded text-slate-300">
+                  <span>Consultation Log:</span>
+                  <span className="text-sky-300 font-bold font-mono">SNAPSHOT ENCRYPTED</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-900/40 p-1 px-2 rounded text-slate-300">
+                  <span>Form Status:</span>
+                  <span className="text-emerald-400 font-mono font-bold uppercase">RESET &amp; READY FOR NEW PATH</span>
+                </div>
+              </div>
+
+              {/* MAIN NAVIGATION TRIGGER */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (successPlanId) {
+                    const savedPlan = plans.find(p => p.id === successPlanId);
+                    if (savedPlan) {
+                      setActivePlan(savedPlan);
+                    }
+                  }
+                  // Switch screens to study dashboard cockpit
+                  setInterviewScreen('bento');
+                }}
+                className="w-full py-4 bg-gradient-to-r from-sky-400 via-sky-500 to-sky-600 hover:sky-450 text-slate-950 text-xs font-mono font-black uppercase tracking-widest rounded-xl transition-all border-none cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-98 animate-pulse"
+              >
+                <BookOpen className="w-4 h-4 text-slate-950" />
+                Launch Active Study Cockpit ➜
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCreateNewSyllabus}
+                className="text-[10px] font-mono font-black text-slate-500 hover:text-slate-400 uppercase tracking-wide cursor-pointer bg-transparent border-none mt-1"
+              >
+                Assemble another Custom Curriculum
+              </button>
+            </div>
+          </div>
+         // PAGE 2: THE DYNAMIC BENTO BOARD MATRIX AND SEEDLESS CLASSROOM COCKPIT
   const renderBentoScreen = () => {
     if (!activePlan) return null;
-    const progressPercent = Math.round((activePlan.topics.filter(t => t.completed).length / 11) * 100);
+    const totalTopics = activePlan.topics.length;
+    const progressPercent = totalTopics > 0 ? Math.round((activePlan.topics.filter(t => t.completed).length / totalTopics) * 100) : 0;
+
+    // Fallback to active/first topic
+    const currentTopic = selectedTopic || activePlan.topics[0] || null;
+
+    // Get cards list for the active topic
+    const cardsList = currentTopic ? (currentTopic.cards || []) : [];
+    const currentCard = currentTopic ? (cardsList[activeCardIndex] || (cardsList[0] || { title: "Topic Summary Overview", content: currentTopic.description })) : null;
 
     return (
-      <div className="flex-grow max-w-5xl mx-auto w-full px-4 py-8 sm:py-12 flex flex-col gap-8">
+      <div className="flex-grow max-w-7xl mx-auto w-full px-4 py-6 sm:py-8 flex flex-col gap-6 animate-fade-in">
         
         {/* SUITE STAT BAR & BACK BUTTON */}
-        <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-xl">
+        <div className={`${thPanel} p-6 sm:p-7 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-md`}>
           <div className="flex flex-col gap-1">
             <button
               onClick={() => {
                 setInterviewScreen('plan');
               }}
-              className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-350 bg-transparent border-none cursor-pointer font-bold mb-3 self-start group"
+              className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-350 bg-transparent border-none cursor-pointer font-bold mb-2.5 self-start group font-mono"
             >
               <ChevronLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" />
-              <span>← Go to Career Planner &amp; Configuration</span>
+              <span>← RETURN TO RECRUITER WIZARD</span>
             </button>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] bg-sky-500/10 border border-sky-550/30 text-sky-450 px-2 py-0.5 rounded uppercase font-black">2. Bento Roadmap</span>
-              <span className="text-[10px] bg-slate-800 text-slate-350 font-extrabold px-2 py-0.5 rounded uppercase">{activePlan.experience_level} Tier</span>
+              <span className="text-[9px] bg-sky-505/10 border border-sky-505/25 text-sky-450 px-2.5 py-0.5 rounded uppercase font-black font-mono">2. Active Preparation Console</span>
+              <span className={`text-[9px] ${isDark ? 'bg-slate-850 text-slate-305' : 'bg-slate-205 text-slate-705'} font-extrabold px-2 py-0.5 rounded uppercase`}>{activePlan.experience_level} Tier</span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-black text-white mt-1 uppercase tracking-tight">{activePlan.role}</h3>
-            <p className="text-slate-400 text-xs font-semibold">11 modular syllabus cutouts tailored specifically to your parameters.</p>
+            <h3 className={`text-lg sm:text-xl font-black mt-1 uppercase tracking-tight ${thHeading}`}>{activePlan.role}</h3>
+            <p className={`${thTextMuted} text-xs font-semibold`}>{totalTopics} modules generated dynamically based on your profile details.</p>
           </div>
 
-          <div className="flex items-center gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-850 shrink-0">
-            <div className="w-14 h-14 rounded-full border-4 border-slate-800 flex items-center justify-center relative bg-slate-900 text-xs font-black text-sky-400 font-mono shrink-0">
+          <div className={`flex items-center gap-4 ${isDark ? 'bg-slate-950/60' : 'bg-stone-50'} p-3.5 px-5 rounded-2xl border ${isDark ? 'border-slate-850' : 'border-slate-200'} shrink-0`}>
+            <div className="w-12 h-12 rounded-full border-4 border-sky-500/20 flex items-center justify-center relative bg-sky-500/5 text-xs font-black text-sky-455 font-mono shrink-0">
               {progressPercent}%
             </div>
             <div>
-              <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Mastery Status</span>
-              <span className="text-xs font-bold text-slate-200 mt-0.5 block">
-                {activePlan.topics.filter(t => t.completed).length} of 11 mastered
+              <span className="text-[9px] uppercase font-bold text-slate-550 tracking-wider font-mono">Overall Progress</span>
+              <span className={`text-xs font-black ${thHeading} mt-0.5 block`}>
+                {activePlan.topics.filter(t => t.completed).length} of {totalTopics} Mastered
               </span>
             </div>
           </div>
         </div>
 
-        {/* MAP OF TOPICS CUTOUTS */}
-        <div className="flex flex-col gap-4">
-          <div className="flex justify-between items-center text-[10px] uppercase font-black tracking-widest text-slate-400 leading-none">
-            <span>Syllabus cutouts (#01 - #11)</span>
-            <span className="text-slate-500 font-bold lowercase">Click a tile to launch targeted testing &amp; study cards</span>
+        {/* MODIFY DYNAMIC ROADMAP WITH AI COACH */}
+        <div className={`${thPanel} p-5 rounded-2xl shadow-sm relative overflow-hidden`}>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-2 mb-2.5">
+            <Sparkles className="w-4 h-4 text-sky-450 animate-pulse" />
+            <h4 className={`text-xs font-black uppercase tracking-wider ${thHeading} font-mono`}>
+              Tweak Syllabus &amp; Adapt Roadmap (Live AI Rewriting)
+            </h4>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {activePlan.topics.map((topic, i) => {
-              const idx = i + 1;
-              const isCompleted = topic.completed;
-
-              return (
-                <div
-                  key={topic.id || idx}
-                  onClick={() => {
-                    setSelectedTopic(topic);
-                    setTopicNotes(topic.notes || '');
-                    setQuizQuestions([]);
-                    setInterviewScreen('topic');
-                  }}
-                  className={`group relative p-6 rounded-2xl border cursor-pointer hover:shadow-2xl transition-all duration-300 flex flex-col justify-between min-h-[150px]
-                    ${selectedTopic?.id === topic.id 
-                      ? 'bg-sky-950/20 border-sky-400 text-sky-300 ring-2 ring-sky-400/20' 
-                      : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                    }
-                  `}
-                >
-                  <div className="flex justify-between items-start gap-2 mb-4">
-                    <span className="font-mono text-xs font-bold text-slate-500 group-hover:text-sky-400 transition-colors">
-                      #{String(idx).padStart(2, '0')}
-                    </span>
-                    {isCompleted ? (
-                      <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 p-1 px-2 rounded-lg text-[9px] font-black uppercase leading-none">
-                        Completed ✓
-                      </span>
-                    ) : (
-                      <span className="bg-slate-950 text-slate-500 border border-slate-800/80 p-1 px-2 rounded-lg text-[9px] font-black uppercase leading-none">
-                        Open
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mb-2">
-                    <h4 className="font-black text-sm text-slate-100 group-hover:text-sky-300 transition-colors line-clamp-2">
-                      {topic.name}
-                    </h4>
-                  </div>
-
-                  <p className="text-[11px] text-slate-400 leading-relaxed font-semibold line-clamp-2 mt-auto group-hover:text-slate-200 transition-colors">
-                    {topic.description}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+          <p className={`text-[11px] ${thTextMuted} font-semibold leading-relaxed mb-3`}>
+            Need to adjust, append, or delete competencies? Direct the AI coach (e.g. <em>"Add 2 non-technical segments covering STAR conflict dialogues"</em> or <em>"Add detailed cards for Kafka broker scaling"</em>) and the system rewrites your syllabus in-database!
+          </p>
+          <form onSubmit={handleEditPlanWithAI} className="flex gap-2 leading-none">
+            <input
+              id="ai-edit-prompt-input"
+              type="text"
+              value={aiEditPrompt}
+              onChange={(e) => setAiEditPrompt(e.target.value)}
+              placeholder="e.g. Focus more on PostgreSQL indexing strategies and concurrency control..."
+              disabled={isEditingPlan}
+              className={`flex-grow ${thInput} focus:outline-none p-3 rounded-xl text-xs font-semibold`}
+            />
+            <button
+              id="ai-edit-submit-btn"
+              type="submit"
+              disabled={isEditingPlan || !aiEditPrompt.trim()}
+              className="bg-sky-505 hover:bg-sky-450 disabled:bg-slate-855 disabled:text-slate-500 text-slate-950 px-5 rounded-xl border-none cursor-pointer font-black text-xs transition-colors tracking-wide shrink-0 font-mono"
+            >
+              {isEditingPlan ? (
+                <span className="flex items-center gap-1">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-955" /> REWRITING ROADMAP...
+                </span>
+              ) : (
+                'Tweak Roadmap with AI'
+              )}
+            </button>
+          </form>
         </div>
 
-        {/* CUMULATIVE ASSESSIONS */}
+        {/* INTEGRATED THREE PANELS COCKPIT COCOON */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* COLUMN 1: LEFT HAND ROADMAP LIST OF ALL TOPICS (width 3/12) */}
+          <div className="lg:col-span-3 flex flex-col gap-4">
+            <div className={`${thPanel} p-4 rounded-xl flex flex-col gap-3 lg:max-h-[750px] lg:overflow-y-auto`}>
+              <div>
+                <span className="text-[9px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-0.5 rounded uppercase font-mono font-black">
+                  Syllabus Tracks
+                </span>
+                <h4 className={`text-xs font-black uppercase mt-1.5 ${thHeading} font-mono`}>
+                  📘 Study Sections ({totalTopics})
+                </h4>
+                <p className={`text-[10px] ${thTextMuted} font-semibold mt-0.5 leading-snug`}>
+                  Choose any module to populate the study sandbox.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 pr-1">
+                {activePlan.topics.map((topic, i) => {
+                  const idx = i + 1;
+                  const isCurSelected = currentTopic?.id === topic.id;
+                  const isCompleted = topic.completed;
+
+                  return (
+                    <button
+                      key={topic.id || idx}
+                      type="button"
+                      onClick={() => selectTopicAndResetStates(topic)}
+                      className={`w-full p-4 rounded-xl border text-left transition-all relative cursor-pointer group flex flex-col justify-between min-h-[95px]
+                        ${isCurSelected 
+                          ? 'bg-sky-500/10 border-sky-400 text-sky-400 ring-1 ring-sky-400/20' 
+                          : `${isDark ? 'bg-slate-950/70 border-slate-850 hover:bg-slate-900/60 font-sans' : 'bg-slate-50 border-slate-205 hover:bg-stone-100 shadow-xs'}`
+                        }
+                      `}
+                    >
+                      {isCurSelected && (
+                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
+                      )}
+                      
+                      <div className="flex justify-between items-center w-full leading-none mb-1.5 pl-1.5">
+                        <span className="font-mono text-[9px] text-slate-505 group-hover:text-sky-455 font-black uppercase">
+                          #{String(idx).padStart(2, '0')}
+                        </span>
+                        {isCompleted ? (
+                          <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 p-0.5 px-1.5 rounded text-[8px] font-black uppercase leading-none font-mono">
+                            Mastered ✓
+                          </span>
+                        ) : (
+                          <span className={`p-0.5 px-1.5 rounded text-[8px] font-black uppercase leading-none border font-mono ${isDark ? 'bg-slate-900 text-slate-505 border-slate-850' : 'bg-slate-200 text-slate-550 border-slate-250'}`}>
+                            Open
+                          </span>
+                        )}
+                      </div>
+                      
+                      <h5 className={`font-extrabold text-[12px] pl-1.5 leading-snug line-clamp-2 w-full ${isCurSelected ? 'text-sky-400' : thHeading}`}>
+                        {topic.name}
+                      </h5>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMN 2: CENTER ACTIVE TOPIC DETAILED READING PREFACE (width 5/12) */}
+          <div className="lg:col-span-6 flex flex-col gap-4">
+            {currentTopic ? (
+              <div className={`${thPanel} p-5 sm:p-6 rounded-xl flex flex-col gap-5 min-h-[580px]`}>
+                
+                {/* ACTIVE TOPIC HEADER WITH STATUS */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-light-dim dark:border-slate-800">
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                    <span className="font-mono text-[8px] text-sky-400 font-extrabold uppercase">
+                      Category Study Screen:
+                    </span>
+                    <h3 className={`text-base sm:text-lg font-black uppercase tracking-tight truncate w-full ${thHeading}`}>
+                      {currentTopic.name}
+                    </h3>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleTopicCompleted(currentTopic.id)}
+                    className={`p-1.5 px-3 text-[10px] font-mono font-black rounded-lg border cursor-pointer transition-all flex items-center gap-1 shrink-0
+                      ${currentTopic.completed 
+                        ? 'bg-emerald-500/15 border-emerald-555 text-emerald-400' 
+                        : `${isDark ? 'bg-slate-900 border-slate-805 text-slate-405 hover:text-white' : 'bg-white border-slate-350 text-slate-605 hover:text-slate-900 shadow-sm'}`
+                      }
+                    `}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-505 shrink-0" />
+                    <span>{currentTopic.completed ? 'Mastered ✓' : 'Mark Lesson Mastered'}</span>
+                  </button>
+                </div>
+
+                {/* HORIZONTAL BOX SELECTION OF ACTIVE CONCEPT CARDS */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none font-mono">
+                    🔑 CONCEPT CARDS ({cardsList.length} checkpoints in this module)
+                  </span>
+
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {cardsList.map((card, idx) => {
+                      const isActive = activeCardIndex === idx;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setActiveCardIndex(idx)}
+                          className={`p-1.5 px-3 text-[10px] font-bold rounded-lg border cursor-pointer transition-all flex items-center gap-1.5
+                            ${isActive 
+                              ? 'bg-sky-500/10 border-sky-400 text-sky-400 font-black' 
+                              : `${isDark ? 'bg-slate-950 border-slate-850 text-slate-405 hover:text-slate-205' : 'bg-slate-100 border-slate-250 text-slate-655 hover:bg-slate-205 shadow-sm'}`
+                            }
+                          `}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-sky-450 animate-pulse' : 'bg-slate-500'}`} />
+                          <span>Card #{idx + 1}: {card.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* CURRENT DETAILED EXPLANATION PANEL */}
+                {currentCard && (
+                  <div className={`p-5 rounded-xl border ${isDark ? 'bg-slate-950/80 border-slate-850' : 'bg-slate-100/60 border-slate-205'} flex flex-col gap-3.5 flex-grow`}>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] font-mono text-slate-505 font-black uppercase">ACTIVE PLAYBOOK CONCEPT: CARD #{activeCardIndex + 1}</span>
+                      <h4 className={`text-sm sm:text-base font-black uppercase tracking-tight ${thHeading}`}>{currentCard.title}</h4>
+                    </div>
+
+                    <div className="text-xs leading-relaxed font-semibold font-sans space-y-3.5 opacity-90 text-slate-655 dark:text-slate-300 markdown-body">
+                      {/* Explicit markdown support inside card contents */}
+                      <ReactMarkdown>{currentCard.content}</ReactMarkdown>
+                    </div>
+
+                    {/* ATTACHED ARCHITECTURAL CODE BOX */}
+                    {currentCard.code && (
+                      <div className="flex flex-col gap-1.5 mt-2">
+                        <div className="flex justify-between items-center bg-slate-955 p-2 px-4 rounded-t-xl text-[9px] font-black text-slate-500 border-b border-slate-900 leading-none font-mono">
+                          <span>🛠️ CODE SCHEMA / STAR REFERENCE SHIELD</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(currentCard.code || '');
+                              alert('Copied pattern to clipboard!');
+                            }}
+                            className="text-sky-400 hover:text-sky-355 bg-transparent border-none cursor-pointer text-[9px] font-mono leading-none tracking-wider uppercase pl-2"
+                          >
+                            [Copy]
+                          </button>
+                        </div>
+                        <pre className="bg-slate-955 text-sky-400 p-3.5 rounded-b-xl border border-slate-900 font-mono text-[9px] overflow-x-auto select-all max-h-[160px] leading-relaxed">
+                          <code>{currentCard.code}</code>
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TOPIC GROUNDING LEARNING LINKS */}
+                {currentTopic.referenceLinks && currentTopic.referenceLinks.length > 0 && (
+                  <div className={`border-t ${isDark ? 'border-slate-800' : 'border-slate-205'} pt-3.5 mt-auto`}>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 block mb-2 font-mono">
+                      Query Grounding &amp; Learning Reference Cards
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {currentTopic.referenceLinks.map((link, lIdx) => (
+                        <a 
+                          key={lIdx}
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`p-1.5 px-2.5 rounded-lg font-bold text-sky-400 flex items-center gap-1.5 transition-all text-[11px] border ${isDark ? 'bg-slate-955 hover:bg-slate-900 border-slate-800' : 'bg-slate-100/80 hover:bg-slate-205 border-slate-250 shadow-sm'}`}
+                        >
+                          <BookOpen className="w-3.5 h-3.5 shrink-0 text-sky-400" />
+                          <span>{link.label}</span>
+                          <ChevronRight className="w-3 h-3 shrink-0 opacity-60" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={`${thPanel} p-10 rounded-xl text-center flex flex-col items-center justify-center min-h-[580px] text-slate-550 italic`}>
+                Select a topic segment from the left-side timeline to display custom learning slides.
+              </div>
+            )}
+          </div>
+
+          {/* COLUMN 3: RIGHT INTERACTION COACH TAB LAB (width 4/12) */}
+          <div className="lg:col-span-3 flex flex-col gap-4">
+            {currentTopic ? (
+              <div className="flex flex-col gap-4">
+                {/* INTERACTIVE WORKSPACE NAV TABS SELECTOR */}
+                <div className={`p-1 rounded-xl border flex ${thPanel} w-full shadow-sm`}>
+                  <button
+                    type="button"
+                    onClick={() => setTopicTab('chat')}
+                    className={`flex-1 py-1.5 text-[9px] font-extrabold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 font-mono
+                      ${topicTab === 'chat' 
+                        ? 'bg-sky-550 text-slate-950 font-black shadow-md' 
+                        : `${isDark ? 'text-slate-450 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
+                      }
+                    `}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 text-center shrink-0" />
+                    <span>Chat Coach</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTopicTab('quiz')}
+                    className={`flex-1 py-1.5 text-[9px] font-extrabold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 font-mono
+                      ${topicTab === 'quiz' 
+                        ? 'bg-sky-550 text-slate-955 font-black shadow-md' 
+                        : `${isDark ? 'text-slate-450 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
+                      }
+                    `}
+                  >
+                    <Trophy className="w-3.5 h-3.5 text-center shrink-0" />
+                    <span>Spot Quiz</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTopicTab('notes')}
+                    className={`flex-1 py-1.5 text-[9px] font-extrabold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 font-mono
+                      ${topicTab === 'notes' 
+                        ? 'bg-sky-550 text-slate-955 font-black shadow-md' 
+                        : `${isDark ? 'text-slate-455 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
+                      }
+                    `}
+                  >
+                    <StickyNote className="w-3.5 h-3.5 text-center shrink-0" />
+                    <span>Notes</span>
+                  </button>
+                </div>
+
+                {/* TAB 1: 💬 DYNAMIC TOPIC COACH AI MENTOR */}
+                {topicTab === 'chat' && (
+                  <div className={`${thPanel} p-4 sm:p-5 rounded-xl flex flex-col gap-4 h-[440px] shadow-sm`}>
+                    <div className="border-b border-light-dim pb-2 leading-none dark:border-slate-800">
+                      <h4 className={`text-xs font-black flex items-center gap-1.5 ${thHeading} font-mono`}>
+                        <Sparkles className="w-4 h-4 text-sky-400 animate-spin animate-duration-1000" /> Active Tutor Coaching Room
+                      </h4>
+                      <p className={`text-[10px] leading-normal ${thTextMuted} mt-0.5`}>
+                        Ask anything about "{currentCard ? currentCard.title : currentTopic.name}".
+                      </p>
+                    </div>
+
+                    {/* MESSAGE CONTAINER */}
+                    <div className={`flex-grow border rounded-xl p-3 overflow-y-auto flex flex-col gap-3 leading-relaxed text-xs ${isDark ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-205 shadow-inner'}`}>
+                      {(!currentTopic.chatHistory || currentTopic.chatHistory.length === 0) ? (
+                        <div className="text-center my-auto flex flex-col items-center gap-1.5 p-4 text-slate-500">
+                          <MessageSquare className="w-6 h-6 text-slate-450" />
+                          <p className="font-semibold italic text-[9px] leading-relaxed">Ask study tips, ask for an explanation containing scenario-based analysis, mock questions or optimizations corresponding to "{currentTopic.name}" real-time.</p>
+                        </div>
+                      ) : (
+                        currentTopic.chatHistory.map((chat, idx) => (
+                          <div 
+                            key={idx}
+                            className={`p-2.5 rounded-xl max-w-[90%] font-semibold leading-normal ${
+                              chat.role === 'user' 
+                                ? 'bg-sky-500/10 text-sky-400 self-end border border-sky-400/25 animate-fade-in' 
+                                : `${isDark ? 'bg-slate-900 border-slate-805' : 'bg-white border-slate-202'} text-slate-505 self-start border animate-fade-in`
+                            }`}
+                          >
+                            <span className="text-[8px] block opacity-50 font-black mb-0.5 font-mono">
+                              {chat.role === 'user' ? 'STUDENT' : 'AI COACH'}
+                            </span>
+                            <div className="markdown-body text-[10px]">
+                              <ReactMarkdown>{chat.content}</ReactMarkdown>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      {isTopicChatting && (
+                        <div className="self-start p-2.5 bg-slate-900 border border-slate-805 text-sky-400 rounded-xl flex items-center gap-1.5 font-bold animate-pulse text-[9px] font-mono">
+                          <RefreshCw className="w-3 h-3 animate-spin text-sky-400" /> Brainstorming insights...
+                        </div>
+                      )}
+                      <div ref={topicChatEndRef} />
+                    </div>
+
+                    {/* INPUT COMPOSER FORM */}
+                    <form onSubmit={handleTopicChatSubmit} className="flex gap-1.5 leading-none">
+                      <input
+                        type="text"
+                        value={topicChatInput}
+                        onChange={(e) => setTopicChatInput(e.target.value)}
+                        placeholder={`Ask regarding ${currentTopic.name}...`}
+                        className={`flex-grow h-9 ${thInput} focus:outline-none p-2 rounded-xl text-xs font-semibold`}
+                      />
+                      <button
+                        type="submit"
+                        disabled={isTopicChatting || !topicChatInput.trim()}
+                        className="bg-sky-505 hover:bg-sky-455 disabled:bg-slate-805 text-slate-950 px-3.5 rounded-xl border-none cursor-pointer flex items-center justify-center font-black h-9"
+                      >
+                        <Send className="w-3.5 h-3.5 text-slate-950" />
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* TAB 2: MCQ QUIZ ENGINE COCOON */}
+                {topicTab === 'quiz' && (
+                  <div className={`${thPanel} p-4 sm:p-5 rounded-xl flex flex-col gap-4 h-[440px] overflow-y-auto shadow-sm`}>
+                    <div className="border-b border-light-dim pb-2 leading-none dark:border-slate-800">
+                      <h4 className={`text-xs font-black flex items-center gap-1.5 ${thHeading} font-mono`}>
+                        <HelpCircle className="w-4 h-4 text-sky-400" /> Topic Assessments &amp; Spot Quiz
+                      </h4>
+                      <p className={`text-[10px] leading-normal ${thTextMuted} mt-0.5`}>
+                        Interactive technical testing suite customized for "{currentTopic.name}".
+                      </p>
+                    </div>
+
+                    {quizQuestions.length === 0 ? (
+                      <div className="my-auto flex flex-col items-center text-center gap-3 p-4">
+                        <Trophy className="w-8 h-8 text-sky-400 animate-bounce" />
+                        <div>
+                          <p className={`text-xs font-black ${thHeading}`}>Create Dynamic Quiz</p>
+                          <p className="text-[10px] text-slate-500 font-semibold mt-1 max-w-[200px] leading-normal">Formulate multiple-choice exercises tailored exactly for "{currentTopic.name}".</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleStartTopicQuiz(currentTopic)}
+                          disabled={isQuizLoading}
+                          className="bg-sky-505 hover:bg-sky-450 text-slate-955 p-2.5 px-4 rounded-xl font-black text-[10px] uppercase cursor-pointer border-none shadow-md tracking-wider flex items-center gap-1.5 mt-1 font-mono"
+                        >
+                          {isQuizLoading ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-955" />
+                              Compiling Diagnostic Quiz...
+                            </>
+                          ) : (
+                            <>
+                              <Trophy className="w-3.5 h-3.5" />
+                              Launch Spot Quiz
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3 leading-snug">
+                        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-505 font-mono">
+                          <span>Progress: {currentQuizIndex + 1}/{quizQuestions.length}</span>
+                          <span>Score: {quizScoreCounter}</span>
+                        </div>
+
+                        {showQuizResult ? (
+                          <div className="text-center py-6 flex flex-col items-center gap-3 font-sans animate-fade-in text-slate-505 font-semibold">
+                            <Trophy className="w-8 h-8 text-sky-405 animate-pulse" />
+                            <div>
+                              <h6 className={`font-black text-sm ${thHeading}`}>Assessment Saved!</h6>
+                              <p className="text-[10px] font-semibold mt-1 leading-relaxed">
+                                Score: <strong>{quizScoreCounter} / {quizQuestions.length}</strong> points logged to active preparation database.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleStartTopicQuiz(currentTopic)}
+                              className="bg-slate-850 hover:bg-slate-205 text-sky-400 font-black text-[9px] px-4 py-2.5 rounded-xl cursor-pointer uppercase border border-slate-705 leading-none mt-2 font-mono"
+                            >
+                              Retake diagnostics
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-3">
+                            <p className={`font-extrabold text-[11px] leading-relaxed font-sans ${thHeading}`}>
+                              {quizQuestions[currentQuizIndex].text}
+                            </p>
+
+                            <div className="flex flex-col gap-2">
+                              {Object.entries(quizQuestions[currentQuizIndex].options || {}).map(([key, value]) => {
+                                const isSelected = selectedQuizAnswer === key;
+                                const isCorrectAnswer = quizQuestions[currentQuizIndex].correct_answer === key;
+                                let optionStyle = isDark ? 'bg-slate-900 border-slate-805 hover:border-slate-755 text-slate-305' : 'bg-white border-slate-250 hover:border-slate-350 text-slate-700';
+
+                                if (isQuizAnswerSubmitted) {
+                                  if (isCorrectAnswer) {
+                                    optionStyle = 'bg-emerald-500/10 border-emerald-505 text-emerald-600 dark:text-emerald-300';
+                                  } else if (isSelected) {
+                                    optionStyle = 'bg-rose-500/10 border-rose-505 text-rose-600 dark:text-rose-300';
+                                  } else {
+                                    optionStyle = 'opacity-40 border-slate-205 text-slate-600 dark:text-slate-550 pointer-events-none';
+                                  }
+                                } else if (isSelected) {
+                                  optionStyle = 'bg-sky-500/5 border-sky-400 text-sky-505';
+                                }
+
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    disabled={isQuizAnswerSubmitted}
+                                    onClick={() => handleSelectQuizAnswer(key)}
+                                    className={`w-full p-2.5 rounded-xl border font-bold text-[11px] text-left cursor-pointer transition-all flex items-center gap-2 leading-snug ${optionStyle}`}
+                                  >
+                                    <span className={`w-5 h-5 rounded font-mono font-black text-[10px] flex items-center justify-center shrink-0 border
+                                      ${isSelected ? 'bg-sky-550 text-slate-950 border-sky-450' : `${isDark ? 'bg-slate-955 border-slate-850' : 'bg-slate-50 border-slate-250'}`}`}>
+                                      {key}
+                                    </span>
+                                    <span>{value as string}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <div className="flex items-center justify-between border-t border-slate-850 pt-2.5 mt-1 leading-none">
+                              <span className="text-[10px]">
+                                {isQuizAnswerSubmitted ? (
+                                  selectedQuizAnswer === quizQuestions[currentQuizIndex].correct_answer ? (
+                                    <span className="text-emerald-505 font-bold">✓ Correct option</span>
+                                  ) : (
+                                    <span className="text-rose-500 font-bold">✗ Error tracked</span>
+                                  )
+                                ) : (
+                                  <span className="text-[9px] text-slate-505 uppercase tracking-widest font-black font-mono">Ready</span>
+                                )}
+                              </span>
+
+                              {!isQuizAnswerSubmitted ? (
+                                <button
+                                  type="button"
+                                  onClick={handleSubmitQuizAnswer}
+                                  disabled={!selectedQuizAnswer}
+                                  className={`p-2 px-4 rounded-lg text-[10px] font-black uppercase tracking-wider border-none transition-all font-mono
+                                    ${selectedQuizAnswer 
+                                      ? 'bg-sky-505 hover:bg-sky-455 text-slate-955 cursor-pointer' 
+                                      : 'bg-slate-200 text-slate-300 dark:bg-slate-850 dark:text-slate-655 cursor-not-allowed'
+                                    }
+                                  `}
+                                >
+                                  Submit
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={handleNextQuizQuestion}
+                                  className="bg-slate-855 hover:bg-slate-800 text-sky-455 p-1 px-3 text-[10px] font-black rounded-lg border border-slate-705 cursor-pointer transition-all flex items-center gap-0.5 font-mono"
+                                >
+                                  <span>{currentQuizIndex < quizQuestions.length - 1 ? 'Next' : 'End'}</span>
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+
+                            {isQuizAnswerSubmitted && (
+                              <div className="p-3 border border-slate-850 rounded-xl mt-1 text-[10px] leading-relaxed bg-slate-955">
+                                <span className="text-[8px] font-black uppercase tracking-widest text-sky-500 block mb-0.5 font-mono">AI Insights &amp; Explanations</span>
+                                <div className="opacity-85 font-sans font-medium text-slate-350 markdown-body">
+                                  <ReactMarkdown>{quizQuestions[currentQuizIndex].explanation}</ReactMarkdown>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 3: STUDY COMPANION RECALL NOTES */}
+                {topicTab === 'notes' && (
+                  <div className={`${thPanel} p-4 sm:p-5 rounded-xl flex flex-col gap-4 h-[440px] shadow-sm`}>
+                    <div className="border-b border-light-dim pb-2 leading-none dark:border-slate-800">
+                      <h4 className={`text-xs font-black flex items-center gap-1.5 ${thHeading} font-mono`}>
+                        <StickyNote className="w-4 h-4 text-sky-400" /> Topic Recall Notes
+                      </h4>
+                      <p className={`text-[10px] leading-normal ${thTextMuted} mt-0.5`}>
+                        Keep custom architectural outlines/starred methodologies in database permanently.
+                      </p>
+                    </div>
+
+                    <textarea
+                      value={topicNotes}
+                      onChange={(e) => setTopicNotes(e.target.value)}
+                      placeholder="Write custom recall summaries, STAR narrative steps, structural insights..."
+                      className={`flex-grow h-44 p-3 rounded-xl text-xs font-semibold outline-none border resize-none leading-relaxed ${thInput}`}
+                    />
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={handleSaveNotesMemory}
+                        disabled={isSavingNotes}
+                        className="bg-sky-505 hover:bg-sky-450 text-slate-955 text-[10px] font-black uppercase px-4 py-2.5 rounded-xl transition-all cursor-pointer border-none shadow-md flex items-center gap-1 font-mono"
+                      >
+                        {isSavingNotes && <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-955" />}
+                        <span>Record Notes</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={`${thPanel} p-8 rounded-xl text-center flex flex-col items-center justify-center min-h-[440px] text-slate-550 italic`}>
+                Study interactions load once any lesson is actively clicked on.
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* HISTORIC PERFORMANCE LOGS AT THE FOOTER OF COCKPIT */}
         {scoreHistory.length > 0 && (
-          <div className="bg-slate-900 border border-slate-850 p-6 rounded-2xl flex flex-col gap-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 leading-none">
-              <TrendingUp className="w-4 h-4 text-sky-400" /> Historical Performance Logs (Episodic assessment memory)
+          <div className={`${thPanel} p-6 rounded-2xl flex flex-col gap-3 mt-4`}>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 leading-none font-mono">
+              <TrendingUp className="w-4 h-4 text-sky-400 animate-pulse" /> Historical Performance Logs
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-slate-350 font-semibold font-sans mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-slate-550 font-semibold font-sans mt-1">
               {scoreHistory.map((score, sIdx) => {
                 const relTopic = activePlan.topics.find(t => t.id === score.topic_id);
                 return (
-                  <div key={sIdx} className="bg-slate-950 p-3 rounded-xl border border-slate-900 flex items-center justify-between">
+                  <div key={sIdx} className={`p-3 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-900 border-slate-900' : 'bg-slate-50 border-slate-205'}`}>
                     <div className="min-w-0 pr-2">
-                      <div className="text-slate-200 font-bold truncate">{relTopic ? relTopic.name : `Topic #${score.topic_id}`}</div>
-                      <div className="text-[10px] opacity-60 font-bold mt-0.5">{new Date(score.date).toLocaleDateString()}</div>
+                       <div className={`${thHeading} font-bold truncate`}>{relTopic ? relTopic.name : `Topic #${score.topic_id}`}</div>
+                       <div className="text-[10px] opacity-60 font-bold mt-0.5 font-mono">{new Date(score.date).toLocaleDateString()}</div>
                     </div>
-                    <span className="bg-slate-800 text-sky-400 font-mono font-black text-xs p-1.5 px-2 rounded-lg shrink-0">
+                    <span className={`font-mono font-black text-xs p-1.5 px-2 rounded-lg shrink-0 ${isDark ? 'bg-slate-800 text-sky-400' : 'bg-slate-200 text-slate-700'}`}>
                       {score.score}/{score.total}
                     </span>
                   </div>
@@ -742,294 +2106,493 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
 
       </div>
     );
+  };       )}
+
+      </div>
+    );
   };
 
   // PAGE 3: SPECIFIC TOPIC PREP AND AI POWERED STUDY ROOM
   const renderTopicScreen = () => {
     if (!activePlan || !selectedTopic) return null;
 
-    return (
-      <div className="flex-grow max-w-4xl mx-auto w-full px-4 py-8 sm:py-12 flex flex-col gap-6 animate-fade-in animate-duration-200">
-        
-        {/* HEADER BACK NAVIGATION BUTTON */}
-        <div className="flex justify-between items-center border-b border-slate-850 pb-4">
-          <button
-            onClick={() => {
-              setInterviewScreen('bento');
-              setQuizQuestions([]);
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-black rounded-xl border border-solid border-slate-800/80 cursor-pointer transition-all duration-200 group"
-          >
-            <ChevronLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform text-sky-400" />
-            <span>← Back to Bento Syllabus Roadmap</span>
-          </button>
+    const cardsList = selectedTopic.cards || [];
+    const currentCard = cardsList[activeCardIndex] || (cardsList[0] || { title: "Topic Summary Overview", content: selectedTopic.description });
 
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase text-slate-500">Master State:</span>
-            
+    return (
+      <div className="flex-grow max-w-7xl mx-auto w-full px-4 py-6 flex flex-col gap-5 animate-fade-in animate-duration-205">
+        
+        {/* HEADER CLASSROOM NAVIGATION BAR */}
+        <div className={`p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${thPanel}`}>
+          <div className="flex flex-col gap-0.5">
+            <button
+              onClick={() => {
+                setInterviewScreen('bento');
+              }}
+              className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-350 bg-transparent border-none cursor-pointer font-extrabold group h-5"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 transform group-hover:-translate-x-1 transition-transform animate-pulse text-sky-400" />
+              <span>← Back to Bento Roadmap</span>
+            </button>
+            <h3 className={`text-base font-black uppercase mt-1 tracking-tight ${thHeading}`}>
+              {selectedTopic.name} Study Room
+            </h3>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-black uppercase text-slate-500 font-mono">Topic Status:</span>
             <button
               type="button"
               onClick={() => handleToggleTopicCompleted(selectedTopic.id)}
               className={`p-1.5 px-3.5 text-xs font-black rounded-lg border cursor-pointer transition-all flex items-center gap-1.5
                 ${selectedTopic.completed 
                   ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' 
-                  : 'bg-slate-900 border-slate-800 text-slate-455 hover:text-slate-200'
+                  : `${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-350 text-slate-600 hover:text-slate-900 shadow-sm'}`
                 }
               `}
             >
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span>{selectedTopic.completed ? 'Mastered ✓' : 'Mark Mastered'}</span>
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>{selectedTopic.completed ? 'Mastered Topic ✓' : 'Mark Topic Mastered'}</span>
             </button>
           </div>
         </div>
 
-        {/* SCREEN TITLE AND CARD DETAILS BLOCK */}
-        <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl shadow-2xl flex flex-col gap-6">
-          <div>
-            <span className="text-[10px] bg-sky-500/10 border border-sky-505/35 text-sky-455 px-3 py-1 rounded-full uppercase font-mono font-extrabold tracking-wider">
-              3. Classroom Study Cutout #{selectedTopic.id}
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black text-white mt-3">{selectedTopic.name}</h2>
-            <p className="text-xs sm:text-sm text-slate-300 font-semibold leading-relaxed mt-2">{selectedTopic.description}</p>
-          </div>
-
-          {/* HIGH FIDELITY STUDY CARDS */}
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-3">Key Concept Cards &amp; System Designs</span>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {selectedTopic.cards && selectedTopic.cards.map((card, cIdx) => (
-                <div 
-                  key={cIdx} 
-                  className="bg-slate-950 border border-slate-855 p-4 rounded-xl flex flex-col justify-between gap-3 text-xs"
-                >
-                  <div>
-                    <h5 className="font-extrabold text-slate-100">{card.title}</h5>
-                    <p className="opacity-90 mt-2 leading-relaxed font-sans font-semibold text-slate-400">{card.content}</p>
-                  </div>
-
-                  {card.code && (
-                    <pre className="bg-slate-900 border border-slate-850 p-2.5 rounded font-mono text-[10px] text-sky-450 overflow-x-auto select-all max-h-[85px]" title="Technical architectural model">
-                      <code>{card.code}</code>
-                    </pre>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* STUDY COMPANION NOTES & AREA */}
-          <div className="bg-slate-950 border border-slate-855 p-5 rounded-2xl flex flex-col gap-4">
-            <div>
-              <h4 className="text-xs sm:text-sm font-black text-slate-150 flex items-center gap-1.5">
-                <StickyNote className="w-4 h-4 text-sky-400" /> Personal Recall study notes
-              </h4>
-              <p className="text-xs text-slate-500 leading-normal mt-1 font-semibold">
-                Pen down code snippets, STAR methods, or checklist outlines. Updates directly to the active plan's semantic memory database cluster.
-              </p>
-            </div>
-
-            <textarea
-              value={topicNotes}
-              onChange={(e) => setTopicNotes(e.target.value)}
-              placeholder="Write summary notes, STAR interview answers, or review checks..."
-              className="bg-slate-900 p-4 h-24 rounded-xl text-xs sm:text-sm font-semibold text-slate-200 outline-none border border-slate-800 focus:border-sky-500 resize-none leading-relaxed"
-            />
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSaveNotesMemory}
-                disabled={isSavingNotes}
-                className="bg-sky-500 hover:bg-sky-450 text-slate-950 text-xs font-black uppercase px-5 py-2.5 rounded-lg transition-all cursor-pointer border-none shadow-md"
-              >
-                {isSavingNotes ? 'Recording...' : 'Record Notes Memory'}
-              </button>
-            </div>
-          </div>
-
-          {/* CURATED STUDY LINKS */}
-          {selectedTopic.referenceLinks && selectedTopic.referenceLinks.length > 0 && (
-            <div className="border-t border-slate-800/80 pt-4">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Recommended groundings</span>
-              <div className="flex flex-wrap gap-2">
-                {selectedTopic.referenceLinks.map((link, lIdx) => (
-                  <a 
-                    key={lIdx}
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-sky-400 p-2.5 rounded-lg font-bold text-sky-400 flex items-center gap-1.5 transition-all text-xs"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span>{link.label}</span>
-                    <ChevronRight className="w-3 h-3 shrink-0 opacity-60" />
-                  </a>
-                ))}
+        {/* THREE WORKSPACE PANELS COLUMNS */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* PANEL 1: LEFT COLUMN CONCEPT NAVIGATOR */}
+          <div className="lg:col-span-3 flex flex-col gap-4">
+            <div className={`${thPanel} p-4 rounded-2xl flex flex-col gap-3 min-h-[400px]`}>
+              <div>
+                <span className="text-[9px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-0.5 rounded uppercase font-black font-mono">
+                  Lesson syllabus
+                </span>
+                <h4 className={`text-xs font-black uppercase mt-1.5 ${thHeading}`}>
+                  📚 Syllabus Concept Map
+                </h4>
+                <p className={`text-[10px] ${thTextMuted} leading-tight font-semibold mt-0.5`}>
+                  Choose a technical concept card below to study its fine details, code patterns, and common traps.
+                </p>
               </div>
-            </div>
-          )}
 
-          {/* MCQ QUIZ */}
-          <div className="border-t border-slate-800/85 pt-5 flex flex-col gap-4">
-            <div>
-              <h5 className="text-base font-black text-slate-100 flex items-center gap-1.5">
-                <HelpCircle className="w-4.5 h-4.5 text-sky-400" /> Topic Practice evaluation (10-questions adaptive quiz)
-              </h5>
-              <p className="text-xs text-slate-450 font-semibold leading-normal mt-1">
-                Pinpoint technical gaps immediately. Run our custom adaptive-assessment engine specifically generated to spot check your study.
-              </p>
-            </div>
-
-            {quizQuestions.length === 0 ? (
-              <div className="flex justify-start">
-                <button
-                  type="button"
-                  onClick={() => handleStartTopicQuiz(selectedTopic)}
-                  disabled={isQuizLoading}
-                  className="bg-sky-500 hover:bg-sky-450 text-slate-950 p-3.5 px-6 rounded-xl font-black text-xs uppercase cursor-pointer border-none shadow-lg tracking-wider"
-                >
-                  {isQuizLoading ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-955 mr-1" />
-                      CONSTRUCTING ASSESSMENT...
-                    </>
-                  ) : (
-                    <>
-                      <Trophy className="w-4 h-4 mr-1.5 inline align-middle" />
-                      Generate customized 10-Question quiz
-                    </>
-                  )}
-                </button>
-              </div>
-            ) : (
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-855 flex flex-col gap-4 leading-relaxed">
-                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  <span>Question {currentQuizIndex + 1} of {quizQuestions.length}</span>
-                  <span>Correct: {quizScoreCounter}</span>
-                </div>
-
-                <div className="h-1 bg-slate-900 rounded overflow-hidden">
-                  <div 
-                    className="h-full bg-sky-500 transition-all duration-300"
-                    style={{ width: `${((currentQuizIndex + 1) / quizQuestions.length) * 105}%` }}
-                  ></div>
-                </div>
-
-                {showQuizResult ? (
-                  <div className="text-center py-6 flex flex-col items-center gap-4 animate-fade-in text-slate-200">
-                    <Trophy className="w-8 h-8 text-sky-400 animate-bounce" />
-                    <div>
-                      <h6 className="font-black text-base">Assessment Finished!</h6>
-                      <p className="text-xs text-slate-450 font-semibold leading-normal mt-1">
-                        Your performance score log ratio: <strong>{quizScoreCounter} / {quizQuestions.length}</strong> has been logged to your local Episodic History.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleStartTopicQuiz(selectedTopic)}
-                      className="bg-slate-850 hover:bg-slate-800 text-sky-400 font-extrabold text-xs px-4 py-2 rounded-lg transition-all border border-slate-750 cursor-pointer uppercase"
-                    >
-                      Reset &amp; Retake
-                    </button>
-                  </div>
+              {/* ITERATIVE CARDS MAP */}
+              <div className="flex flex-col gap-2 overflow-y-auto max-h-[380px] pr-1">
+                {cardsList.length === 0 ? (
+                  <p className="text-[11px] text-slate-550 italic font-semibold text-center my-auto">Syllabus details compiling...</p>
                 ) : (
-                  <div className="flex flex-col gap-4">
-                    <p className="font-extrabold text-xs sm:text-sm text-slate-200 font-sans leading-normal">
-                      {quizQuestions[currentQuizIndex].text}
-                    </p>
-
-                    <div className="flex flex-col gap-2.5">
-                      {Object.entries(quizQuestions[currentQuizIndex].options || {}).map(([key, value]) => {
-                        const isSelected = selectedQuizAnswer === key;
-                        const isCorrectAnswer = quizQuestions[currentQuizIndex].correct_answer === key;
-                        let optionStyle = 'bg-slate-900 border-slate-805 hover:border-slate-755 text-slate-300';
-
-                        if (isQuizAnswerSubmitted) {
-                          if (isCorrectAnswer) {
-                            optionStyle = 'bg-emerald-500/10 border-emerald-505 text-emerald-355';
-                          } else if (isSelected) {
-                            optionStyle = 'bg-rose-500/10 border-rose-505 text-rose-355';
-                          } else {
-                            optionStyle = 'bg-slate-900/35 border-slate-900 text-slate-500 pointer-events-none';
+                  cardsList.map((card, idx) => {
+                    const isActive = activeCardIndex === idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveCardIndex(idx)}
+                        className={`w-full p-3 rounded-xl border text-left transition-all relative cursor-pointer group flex flex-col gap-1
+                          ${isActive 
+                            ? 'bg-sky-500/10 border-sky-400 text-sky-450' 
+                            : `${isDark ? 'bg-slate-955 border-slate-850 hover:bg-slate-900' : 'bg-slate-50 border-slate-205 hover:bg-slate-100'}`
                           }
-                        } else if (isSelected) {
-                          optionStyle = 'bg-sky-500/10 border-sky-400 text-sky-300';
-                        }
-
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            disabled={isQuizAnswerSubmitted}
-                            onClick={() => handleSelectQuizAnswer(key)}
-                            className={`w-full p-3.5 rounded-xl border font-bold text-xs text-left cursor-pointer transition-all duration-150 flex items-center gap-3 ${optionStyle}`}
-                          >
-                            <span className={`w-6 h-6 rounded-md font-mono font-black text-xs flex items-center justify-center shrink-0 border
-                              ${isSelected ? 'bg-sky-500 text-slate-950 border-sky-450' : 'bg-slate-950 border-slate-850'}
-                            `}>
-                              {key}
-                            </span>
-                            <span className="leading-snug">{value as string}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-slate-855 pt-3.5 mt-1">
-                      <div className="text-xs font-semibold">
-                        {isQuizAnswerSubmitted ? (
-                          <span>
-                            {selectedQuizAnswer === quizQuestions[currentQuizIndex].correct_answer ? (
-                              <span className="text-emerald-400 font-bold">✓ Mastered: Correct choice!</span>
-                            ) : (
-                              <span className="text-rose-400 font-bold">✗ Incorrect option chosen</span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-black">Select option to evaluate</span>
+                        `}
+                      >
+                        {isActive && (
+                          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping" />
                         )}
-                      </div>
-
-                      {!isQuizAnswerSubmitted ? (
-                        <button
-                          type="button"
-                          onClick={handleSubmitQuizAnswer}
-                          disabled={!selectedQuizAnswer}
-                          className={`p-2.5 px-6 rounded-lg text-xs font-black uppercase tracking-wider border-none transition-all
-                            ${selectedQuizAnswer 
-                              ? 'bg-sky-455 hover:bg-sky-400 text-slate-955 cursor-pointer' 
-                              : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                            }
-                          `}
-                        >
-                          Submit Answer
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleNextQuizQuestion}
-                          className="bg-slate-800 hover:bg-slate-750 text-sky-400 p-2 text-xs font-black px-5 rounded-lg border border-slate-705 cursor-pointer transition-all flex items-center gap-1"
-                        >
-                          <span>{currentQuizIndex < quizQuestions.length - 1 ? 'Next cutout' : 'View Summaries'}</span>
-                          <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-                        </button>
-                      )}
-                    </div>
-
-                    {isQuizAnswerSubmitted && (
-                      <div className="bg-slate-950 p-3.5 border border-slate-900 rounded-xl mt-1 text-[11px] leading-relaxed">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-sky-400 block mb-1">AI Coach insight</span>
-                        <div className="text-slate-355 font-sans font-semibold">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {quizQuestions[currentQuizIndex].explanation}
-                          </ReactMarkdown>
+                        <div className="flex justify-between items-center w-full leading-none pl-1">
+                          <span className="font-mono text-[9px] text-slate-500 group-hover:text-sky-400 font-bold uppercase">
+                            Concept #{idx + 1}
+                          </span>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                        <h5 className={`font-extrabold text-xs pl-1 leading-snug truncate w-full ${isActive ? 'text-sky-400' : thHeading}`}>
+                          {card.title}
+                        </h5>
+                        <p className={`text-[10px] pl-1 leading-normal line-clamp-1 opacity-70 ${thTextMuted}`}>
+                          {card.content}
+                        </p>
+                      </button>
+                    );
+                  })
                 )}
               </div>
-            )}
+
+              {/* CARD DETECTIVE STATE RATIO */}
+              <div className={`p-2.5 rounded-xl text-center text-[10px] font-black uppercase ${isDark ? 'bg-slate-950/60' : 'bg-slate-100'} border border-slate-800/40 mt-auto`}>
+                Active view: {activeCardIndex + 1} of {cardsList.length} concepts
+              </div>
+            </div>
+          </div>
+
+          {/* PANEL 2 & 3: RIGHT WORKSPACE SANDBOX */}
+          <div className="lg:col-span-9 flex flex-col md:flex-row gap-6 items-start w-full">
+            
+            {/* CENTER CONCEPT DETAILS PANEL */}
+            <div className={`flex-grow w-full md:min-w-0 ${thPanel} p-6 sm:p-7 rounded-2xl shadow-xl flex flex-col gap-5 min-h-[500px]`}>
+              <div>
+                <span className="text-[10px] bg-sky-500/10 border border-sky-450/20 text-sky-400 px-3 py-1 rounded-full uppercase font-mono font-extrabold tracking-wide">
+                  Active Playbook details: #{activeCardIndex + 1}
+                </span>
+                <h2 className={`text-lg sm:text-xl font-bold mt-3 ${thHeading}`}>
+                  {currentCard.title}
+                </h2>
+              </div>
+
+              {/* EDUCATION DETAILS BODY */}
+              <div className={`text-xs leading-relaxed font-semibold font-sans space-y-3 opacity-95 ${thSubHeading}`}>
+                <p>{currentCard.content}</p>
+              </div>
+
+              {/* COMPLEX ARCHITECTURE CODE TERMINAL PANEL */}
+              {currentCard.code && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center bg-slate-950 p-2 px-4 rounded-t-xl text-[10px] font-black text-slate-500 border-b border-slate-900 leading-none">
+                    <span className="font-mono">🛠️ TECHNICAL ARCHITECTURAL SCHEMATIC</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(currentCard.code || '');
+                      }}
+                      className="text-sky-400 hover:text-sky-350 bg-transparent border-none cursor-pointer text-[9px] font-mono leading-none tracking-wider uppercase"
+                    >
+                      [Copy Code]
+                    </button>
+                  </div>
+                  <pre className="bg-slate-955 text-sky-400 p-4 rounded-b-xl border border-slate-900 font-mono text-[10px] overflow-x-auto select-all max-h-[180px] leading-relaxed">
+                    <code>{currentCard.code}</code>
+                  </pre>
+                </div>
+              )}
+
+              {/* CURATED REFERENCE LINKS */}
+              {selectedTopic.referenceLinks && selectedTopic.referenceLinks.length > 0 && (
+                <div className={`border-t ${isDark ? 'border-slate-800' : 'border-slate-205'} pt-4 mt-auto`}>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2 font-mono">
+                    Grounding References &amp; Search Queries
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedTopic.referenceLinks.map((link, lIdx) => (
+                      <a 
+                        key={lIdx}
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`p-2 px-3 rounded-lg font-bold text-sky-400 flex items-center gap-1.5 transition-all text-xs border ${isDark ? 'bg-slate-955 hover:bg-slate-900 border border-slate-800' : 'bg-slate-100 hover:bg-slate-205 border-slate-250 shadow-sm'}`}
+                      >
+                        <BookOpen className="w-3.5 h-3.5 shrink-0 text-sky-400" />
+                        <span>{link.label}</span>
+                        <ChevronRight className="w-3 h-3 shrink-0 opacity-60" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT COMPANION TAB LAB WORKPLACE */}
+            <div className="w-full md:w-[350px] lg:w-[410px] shrink-0 flex flex-col gap-4 animate-fade-in">
+              
+              {/* TABS SELECTOR DOCK BAR */}
+              <div className={`p-1.5 rounded-xl border flex ${thPanel} w-full`}>
+                <button
+                  type="button"
+                  onClick={() => setTopicTab('chat')}
+                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1.5
+                    ${topicTab === 'chat' 
+                      ? 'bg-sky-505 text-slate-950 font-black shadow' 
+                      : `${isDark ? 'text-slate-450 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
+                    }
+                  `}
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>AI Tutor Chat</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTopicTab('quiz' as any)}
+                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1.5
+                    ${(topicTab as string) === 'quiz' 
+                      ? 'bg-sky-505 text-slate-955 font-black shadow' 
+                      : `${isDark ? 'text-slate-450 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
+                    }
+                  `}
+                >
+                  <Trophy className="w-3.5 h-3.5" />
+                  <span>Spot Quiz</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTopicTab('notes')}
+                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1.5
+                    ${topicTab === 'notes' 
+                      ? 'bg-sky-505 text-slate-955 font-black shadow' 
+                      : `${isDark ? 'text-slate-450 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
+                    }
+                  `}
+                >
+                  <StickyNote className="w-3.5 h-3.5" />
+                  <span>Study Notes</span>
+                </button>
+              </div>
+
+              {/* TAB 1: 💬 AI POWERED ASSISTANT CHAT COMPANION */}
+              {topicTab === 'chat' && (
+                <div className={`${thPanel} p-5 rounded-2xl flex flex-col gap-4 h-[440px]`}>
+                  <div className="border-b border-light-dim pb-2.5 dark:border-slate-800">
+                    <h4 className={`text-xs font-black flex items-center gap-1.5 ${thHeading}`}>
+                      <Sparkles className="w-4 h-4 text-sky-400 animate-spin animate-duration-1000" /> Active Tutor Coaching Screen
+                    </h4>
+                    <p className={`text-[10px] leading-normal ${thTextMuted} mt-0.5`}>
+                      Get live assistance regarding "{currentCard.title}". Type custom queries below!
+                    </p>
+                  </div>
+
+                  {/* SCROLL MESSAGE WINDOW */}
+                  <div className={`flex-grow border rounded-xl p-3 overflow-y-auto flex flex-col gap-3 leading-relaxed text-xs ${isDark ? 'bg-slate-950 border-slate-850' : 'bg-slate-100 border-slate-205'}`}>
+                    {(!selectedTopic.chatHistory || selectedTopic.chatHistory.length === 0) ? (
+                      <div className="text-center my-auto flex flex-col items-center gap-1.5 p-4 text-slate-500">
+                        <MessageSquare className="w-6 h-6 text-slate-405" />
+                        <p className="font-semibold italic text-[10px]">Ask the Coach details regarding "{currentCard.title}"! We can discuss code optimization, trap limits or performance metrics here.</p>
+                      </div>
+                    ) : (
+                      selectedTopic.chatHistory.map((chat, idx) => (
+                        <div 
+                          key={idx}
+                          className={`p-2.5 rounded-xl max-w-[90%] font-semibold leading-normal ${
+                            chat.role === 'user' 
+                              ? 'bg-sky-500/10 text-sky-400 self-end border border-sky-400/25' 
+                              : `${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} text-slate-505 self-start border`
+                          }`}
+                        >
+                          <span className="text-[8px] block opacity-50 font-black mb-0.5 font-mono">
+                            {chat.role === 'user' ? 'STUDENT' : 'AI COACH'}
+                          </span>
+                          <div className="markdown-body text-[10px]">
+                            <ReactMarkdown>{chat.content}</ReactMarkdown>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    {isTopicChatting && (
+                      <div className="self-start p-2 bg-slate-900 border border-slate-800 text-sky-400 rounded-xl flex items-center gap-1 font-bold animate-pulse text-[9px]">
+                        <RefreshCw className="w-3 h-3 animate-spin text-sky-400" /> Coach is brainstorming guide...
+                      </div>
+                    )}
+                    <div ref={topicChatEndRef} />
+                  </div>
+
+                  {/* MESSAGE FORM */}
+                  <form onSubmit={handleTopicChatSubmit} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={topicChatInput}
+                      onChange={(e) => setTopicChatInput(e.target.value)}
+                      placeholder={`Ask regarding ${currentCard.title}...`}
+                      className={`flex-grow h-9 ${thInput} focus:outline-none p-2 rounded-xl text-xs font-semibold`}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isTopicChatting || !topicChatInput.trim()}
+                      className="bg-sky-500 hover:bg-sky-450 disabled:bg-slate-800 text-slate-950 px-3.5 rounded-xl border-none cursor-pointer flex items-center justify-center font-black h-9"
+                    >
+                      <Send className="w-3.5 h-3.5 text-slate-950" />
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* TAB 2: 🏆 DYNAMIC TESTING PRACTICES & QUIZ ENGINE */}
+              {(((topicTab as string) === 'quiz') || ((topicTab as string) === 'assessment')) && (
+                <div className={`${thPanel} p-5 rounded-2xl flex flex-col gap-4 h-[440px] overflow-y-auto`}>
+                  <div className="border-b border-light-dim pb-2.5 dark:border-slate-800">
+                    <h4 className={`text-xs font-black flex items-center gap-1.5 ${thHeading}`}>
+                      <HelpCircle className="w-4 h-4 text-sky-400" /> Topic Assessments &amp; Spot Quiz
+                    </h4>
+                    <p className={`text-[10px] leading-normal ${thTextMuted} mt-0.5`}>
+                      Generate customized technical multiple-choice exercises for "{selectedTopic.name}".
+                    </p>
+                  </div>
+
+                  {quizQuestions.length === 0 ? (
+                    <div className="my-auto flex flex-col items-center text-center gap-3 p-4">
+                      <Trophy className="w-8 h-8 text-sky-400 animate-bounce" />
+                      <div>
+                        <p className={`text-xs font-black ${thHeading}`}>Create Dynamic Quiz</p>
+                        <p className="text-[10px] text-slate-500 font-semibold mt-1 max-w-[240px]">We'll formulate a diagnostic quiz of technical scenarios customized for this topic.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleStartTopicQuiz(selectedTopic)}
+                        disabled={isQuizLoading}
+                        className="bg-sky-500 hover:bg-sky-450 text-slate-955 p-2.5 px-5 rounded-xl font-black text-[10px] uppercase cursor-pointer border-none shadow-md tracking-wider flex items-center gap-1.5 mt-1"
+                      >
+                        {isQuizLoading ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin text-slate-955" />
+                            COMPILING SCENARIOS...
+                          </>
+                        ) : (
+                          <>
+                            <Trophy className="w-3.5 h-3.5" />
+                            Launch spot-quiz
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3 leading-snug">
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        <span>Exams Progress: {currentQuizIndex + 1}/{quizQuestions.length}</span>
+                        <span>Score: {quizScoreCounter}</span>
+                      </div>
+
+                      {showQuizResult ? (
+                        <div className="text-center py-6 flex flex-col items-center gap-3 font-sans animate-fade-in text-slate-505 font-semibold">
+                          <Trophy className="w-8 h-8 text-sky-400 animate-pulse" />
+                          <div>
+                            <h6 className={`font-black text-sm ${thHeading}`}>Assessment Saved!</h6>
+                            <p className="text-[10px] font-semibold mt-1">
+                              Accrued ratio: <strong>{quizScoreCounter} / {quizQuestions.length}</strong> points logged to plan archives.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleStartTopicQuiz(selectedTopic)}
+                            className="bg-slate-850 hover:bg-slate-205 text-sky-400 font-black text-[9px] px-4 py-2.5 rounded-xl cursor-pointer uppercase border border-slate-705 leading-none mt-2"
+                          >
+                            Retake diagnostics
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-3">
+                          <p className={`font-extrabold text-[11px] leading-relaxed font-sans ${thHeading}`}>
+                            {quizQuestions[currentQuizIndex].text}
+                          </p>
+
+                          <div className="flex flex-col gap-2">
+                            {Object.entries(quizQuestions[currentQuizIndex].options || {}).map(([key, value]) => {
+                              const isSelected = selectedQuizAnswer === key;
+                              const isCorrectAnswer = quizQuestions[currentQuizIndex].correct_answer === key;
+                              let optionStyle = isDark ? 'bg-slate-900 border-slate-805 hover:border-slate-755 text-slate-300' : 'bg-white border-slate-250 hover:border-slate-350 text-slate-700';
+
+                              if (isQuizAnswerSubmitted) {
+                                if (isCorrectAnswer) {
+                                  optionStyle = 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-300';
+                                } else if (isSelected) {
+                                  optionStyle = 'bg-rose-500/10 border-rose-500 text-rose-600 dark:text-rose-300';
+                                } else {
+                                  optionStyle = 'opacity-40 border-slate-205 text-slate-600 dark:text-slate-550 pointer-events-none';
+                                }
+                              } else if (isSelected) {
+                                optionStyle = 'bg-sky-500/5 border-sky-400 text-sky-500';
+                              }
+
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  disabled={isQuizAnswerSubmitted}
+                                  onClick={() => handleSelectQuizAnswer(key)}
+                                  className={`w-full p-2.5 rounded-xl border font-bold text-[11px] text-left cursor-pointer transition-all flex items-center gap-2 leading-snug ${optionStyle}`}
+                                >
+                                  <span className={`w-5 h-5 rounded font-mono font-black text-[10px] flex items-center justify-center shrink-0 border
+                                    ${isSelected ? 'bg-sky-500 text-slate-950 border-sky-450' : `${isDark ? 'bg-slate-955 border-slate-850' : 'bg-slate-50 border-slate-250'}`}`}>
+                                    {key}
+                                  </span>
+                                  <span>{value as string}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div className="flex items-center justify-between border-t border-slate-850 pt-2.5 mt-1 leading-none">
+                            <span className="text-[10px]">
+                              {isQuizAnswerSubmitted ? (
+                                selectedQuizAnswer === quizQuestions[currentQuizIndex].correct_answer ? (
+                                  <span className="text-emerald-505 font-bold">✓ Correct option</span>
+                                ) : (
+                                  <span className="text-rose-500 font-bold">✗ Error tracked</span>
+                                )
+                              ) : (
+                                <span className="text-[9px] text-slate-505 uppercase tracking-widest font-black">Ready</span>
+                              )}
+                            </span>
+
+                            {!isQuizAnswerSubmitted ? (
+                              <button
+                                type="button"
+                                onClick={handleSubmitQuizAnswer}
+                                disabled={!selectedQuizAnswer}
+                                className={`p-2 px-4 rounded-lg text-[10px] font-black uppercase tracking-wider border-none transition-all
+                                  ${selectedQuizAnswer 
+                                    ? 'bg-sky-505 hover:bg-sky-450 text-slate-950 cursor-pointer' 
+                                    : 'bg-slate-200 text-slate-400 dark:bg-slate-850 dark:text-slate-650 cursor-not-allowed'
+                                  }
+                                `}
+                              >
+                                Submit
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleNextQuizQuestion}
+                                className="bg-slate-855 hover:bg-slate-800 text-sky-455 p-1 px-3.5 text-[10px] font-black rounded-lg border border-slate-705 cursor-pointer transition-all flex items-center gap-0.5"
+                              >
+                                <span>{currentQuizIndex < quizQuestions.length - 1 ? 'Next' : 'End'}</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+
+                          {isQuizAnswerSubmitted && (
+                            <div className="p-3 border border-slate-850 rounded-xl mt-1 text-[10px] leading-relaxed bg-slate-955">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-sky-500 block mb-0.5">AI Insights &amp; Explanations</span>
+                              <div className="opacity-80 font-sans font-medium">
+                                <ReactMarkdown>{quizQuestions[currentQuizIndex].explanation}</ReactMarkdown>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: 📝 PERSONAL RECALL SCRATCH MEMORY */}
+              {topicTab === 'notes' && (
+                <div className={`${thPanel} p-5 rounded-2xl flex flex-col gap-4 h-[440px]`}>
+                  <div className="border-b border-light-dim pb-2.5 dark:border-slate-800">
+                    <h4 className={`text-xs font-black flex items-center gap-1.5 ${thHeading}`}>
+                      <StickyNote className="w-4 h-4 text-sky-400" /> Topic Recall Notes
+                    </h4>
+                    <p className={`text-[10px] leading-normal ${thTextMuted} mt-0.5`}>
+                      Record key STAR outlines, architectural patterns or terms. Keeps logs persistently.
+                    </p>
+                  </div>
+
+                  <textarea
+                    value={topicNotes}
+                    onChange={(e) => setTopicNotes(e.target.value)}
+                    placeholder="Write custom recall summary, formulas, tips, patterns..."
+                    className={`flex-grow h-44 p-3 rounded-xl text-xs font-semibold outline-none border resize-none leading-relaxed ${thInput}`}
+                  />
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={handleSaveNotesMemory}
+                      disabled={isSavingNotes}
+                      className="bg-sky-500 hover:bg-sky-450 text-slate-950 text-[10px] font-black uppercase px-4 py-2.5 rounded-xl transition-all cursor-pointer border-none shadow-md flex items-center gap-1"
+                    >
+                      {isSavingNotes && <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-950" />}
+                      <span>Record Memory notes</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
           </div>
 
         </div>
@@ -1038,19 +2601,35 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-sky-500/20 selection:text-sky-300">
+    <div className={`min-h-screen ${thBg} flex flex-col font-sans selection:bg-sky-500/20 selection:text-sky-305 transition-colors duration-300`}>
       
       {/* GLOBAL NAVBAR BAR */}
-      <nav className="bg-slate-900 border-b border-slate-800 text-white py-4 px-4 sm:px-8 flex items-center justify-between shadow-xl">
-        <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-          <Briefcase className="w-5 h-5 text-sky-400" /> PromptPass <span className="text-xs bg-sky-500/10 border border-sky-500/30 text-sky-400 px-2 py-0.5 rounded uppercase font-black tracking-wide leading-none">V2 INTERVIEW</span>
-        </h2>
+      <nav className={`${thNavbar} py-4 px-4 sm:px-8 flex items-center justify-between`}>
         <div className="flex items-center gap-3">
+          <GraduationCap className="w-6 h-6 text-sky-505 shrink-0" />
+          <h2 className={`text-lg font-black tracking-tight flex items-center gap-2 ${thHeading}`}>
+            <span>PrepMaster</span> 
+            <span className="text-[9px] bg-sky-500/10 border border-sky-500/30 text-sky-550 dark:text-sky-400 px-2 py-0.5 rounded uppercase font-black tracking-widest leading-none font-mono">V2 CODESYLLABUS</span>
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-3">
+          
+          {/* THEME SWITCH TOGGLE BUTTON */}
+          <button
+            type="button"
+            onClick={() => setIsDark(!isDark)}
+            className={`p-2 rounded-xl border transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 ${isDark ? 'border-slate-800 bg-slate-900 text-sky-400' : 'border-slate-200 bg-white text-amber-500'}`}
+            title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          >
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
           <button
             onClick={onBackToHome}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl transition-all cursor-pointer border-none"
+            className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer border ${isDark ? 'border-slate-800 bg-slate-900 text-slate-300 hover:text-white' : 'border-slate-200 bg-white text-slate-700 hover:text-black hover:shadow-sm'}`}
           >
-            ← Check Exam Prep
+            ← Move to Exam Prep
           </button>
         </div>
       </nav>
@@ -1060,661 +2639,9 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
       {interviewScreen === 'bento' && renderBentoScreen()}
       {interviewScreen === 'topic' && renderTopicScreen()}
 
-      {/* REMAINDER OLD JSX INACTIVATED TO ELIMINATE REDUNDANCY */}
-      {false && (
-      <div className="flex-grow max-w-6xl mx-auto w-full px-4 py-8 sm:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* LEFT COLUMN: NAVIGATION STATS AND CHAT REFINE CHANNELS */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          
-          {/* CONTROL TABS */}
-          <div className="flex bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800/80">
-            <button
-              onClick={() => { setNavTab('build'); handleCreateNewSyllabus(); }}
-              className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-xl transition-all border-none cursor-pointer ${
-                navTab === 'build' ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-              }`}
-            >
-              💼 Hire Optimizer
-            </button>
-            <button
-              onClick={() => setNavTab('plans')}
-              className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-xl transition-all border-none cursor-pointer ${
-                navTab === 'plans' ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-              }`}
-            >
-              🗃️ Prep Vault ({plans.length})
-            </button>
-          </div>
-
-          {/* ACTIVE PREPARATION SELECTION */}
-          {navTab === 'plans' && (
-            <div className="bg-slate-900/40 border border-slate-800/60 p-5 rounded-2xl flex flex-col gap-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Archived Prep Tracks</span>
-              {plans.length === 0 ? (
-                <p className="text-xs font-medium text-slate-500 italic py-2">No archived roadmaps. Construct a plan using the standard scheduler first!</p>
-              ) : (
-                <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto pr-1">
-                  {plans.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => handleSelectPlan(p)}
-                      className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all text-xs font-bold cursor-pointer ${
-                        activePlan?.id === p.id 
-                          ? 'bg-sky-500/10 border-sky-500 text-sky-400' 
-                          : 'bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-300'
-                      }`}
-                    >
-                      <div>
-                        <div>{p.role}</div>
-                        <div className="text-[10px] opacity-60 font-semibold uppercase mt-0.5">{p.experience_level} Tier</div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* CONVERSATIONAL COACH AND FILE LOAD PLANNERS */}
-          <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col gap-6">
-            
-            {/* INTRO SPECS */}
-            <div className="border-b border-slate-800 pb-4">
-              <h3 className="text-lg font-black text-slate-100 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-sky-400" /> 1. Syllabus Consultation
-              </h3>
-              <p className="text-xs text-slate-400 font-medium leading-relaxed mt-1">
-                Establish your job role specifications. Chat naturally with Gemini or load an existing preparation syllabus below, then build an automated 11-topic cutout study grid!
-              </p>
-            </div>
-
-            {/* SYLLABUS DISCOVERY FORM */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Target Role</span>
-                <input 
-                  type="text"
-                  value={targetRole}
-                  onChange={(e) => setTargetRole(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 focus:border-sky-500 outline-none p-3 rounded-xl text-xs sm:text-sm font-bold text-slate-200"
-                  placeholder="e.g. Frontend Engineer"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tier Level</span>
-                <select
-                  value={experienceLevel}
-                  onChange={(e) => setExperienceLevel(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 focus:border-sky-500 outline-none p-3 rounded-xl text-xs sm:text-sm font-bold text-slate-200 cursor-pointer"
-                >
-                  <option value="Junior">Junior (0-2 YOE)</option>
-                  <option value="Mid-Level">Mid-Level (2-5 YOE)</option>
-                  <option value="Senior">Senior (5-8 YOE)</option>
-                  <option value="Lead/Principal">Principal/Lead (8+ YOE)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* SYLLABUS DIRECTIVE TEXTAREA INPUT */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex justify-between items-center">
-                <span>Upload / Paste Preparation Syllabus</span>
-                <span className="text-[9px] font-semibold text-sky-400 uppercase">Optional</span>
-              </span>
-              <textarea
-                value={customPlanText}
-                onChange={(e) => setCustomPlanText(e.target.value)}
-                className="bg-slate-950 border border-slate-800 focus:border-sky-500 outline-none p-3 rounded-xl text-xs font-semibold text-slate-300 h-20 resize-none leading-relaxed"
-                placeholder="Paste customized topics list, company JD specifications, or previous study schedules to fully align the 11 topic grid."
-              />
-            </div>
-
-            {/* INTERACTIVE COACH CONVERSATION LOGS (Contextual Memory) */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Coach Consulting Thread</span>
-              <div className="bg-slate-950 border border-slate-850 rounded-xl p-3 h-40 overflow-y-auto flex flex-col gap-3 leading-relaxed text-xs">
-                {chatLog.length === 0 ? (
-                  <p className="text-slate-500 font-medium italic text-center my-auto">Ask the coach customized prep questions to refine your curriculum study plan, or click synthesize below directly!</p>
-                ) : (
-                  chatLog.map((chat, idx) => (
-                    <div 
-                      key={idx}
-                      className={`p-2.5 rounded-xl max-w-[90%] font-semibold shadow-inner ${
-                        chat.role === 'user' 
-                          ? 'bg-sky-500/10 text-sky-300 self-end border border-sky-500/15' 
-                          : 'bg-slate-900 text-slate-300 self-start border border-slate-800'
-                      }`}
-                    >
-                      <span className="text-[9px] block opacity-40 font-black mb-1">
-                        {chat.role === 'user' ? 'STUDENT' : 'COACH ARCHITECT'}
-                      </span>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{chat.content}</ReactMarkdown>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* CHAT INPUT SUBMIT */}
-              <form onSubmit={handleConsultChat} className="flex gap-2 mt-2">
-                <input
-                  type="text"
-                  value={chatMessageInput}
-                  onChange={(e) => setChatMessageInput(e.target.value)}
-                  placeholder="Ask Coach to add custom technology domains..."
-                  className="flex-grow bg-slate-950 border border-slate-800 focus:border-sky-550 focus:outline-none p-2.5 rounded-xl text-xs font-semibold text-slate-200"
-                />
-                <button
-                  type="submit"
-                  disabled={isConsulting}
-                  className="bg-slate-800 hover:bg-slate-700 text-sky-400 p-2.5 rounded-xl transition-all cursor-pointer border-none"
-                >
-                  {isConsulting ? (
-                    <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </button>
-              </form>
-            </div>
-
-            {/* SYLLABUS FINALIZE CONVERSION PANEL */}
-            <button
-              type="button"
-              onClick={handleFinalizeSyllabusSchedules}
-              disabled={isGenerating}
-              className={`w-full py-4 rounded-2xl font-black text-xs sm:text-sm border-none transition-all cursor-pointer flex items-center justify-center gap-2 tracking-wider uppercase
-                ${isGenerating 
-                  ? 'bg-slate-800 text-slate-500 font-black cursor-wait shadow-none' 
-                  : 'bg-sky-400 hover:bg-sky-350 text-slate-950 shadow-lg shadow-sky-400/20'
-                }
-              `}
-            >
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
-                  CONSTRUCTING 11-TOPIC MATRIX...
-                </>
-              ) : (
-                <>
-                  <Layout className="w-4.5 h-4.5 shrink-0" />
-                  Finalize Plan & Unlock Bento Board
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* ACTIVE MULTI-TIER MEMORY STATS SUMMARY PANEL (A PM-crafted addition showing how recorded data persists) */}
-          <div className="bg-slate-900 border border-slate-850 rounded-3xl p-6 sm:p-8 flex flex-col gap-4">
-            <h4 className="text-xs sm:text-sm font-black text-slate-100 flex items-center gap-1.5 border-b border-slate-800 pb-3">
-              <Database className="w-4 h-4 text-emerald-400" /> Active memory records ("record everything")
-            </h4>
-            
-            <div className="grid grid-cols-1 gap-3 text-[11px] font-bold text-slate-400 leading-normal">
-              
-              <div className="flex items-start gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-900/60">
-                <div className="p-1 px-1.5 rounded bg-sky-500/10 text-sky-400 uppercase text-[9px] tracking-wide font-black">Short-Term</div>
-                <div>
-                  <div className="text-slate-200">Consultation Session Context</div>
-                  <div className="opacity-75 mt-0.5 font-medium leading-relaxed">Tracks custom conversation threads on parameters of ${targetRole}. ({chatLog.length} messages)</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-900/60">
-                <div className="p-1 px-1.5 rounded bg-amber-500/10 text-amber-400 uppercase text-[9px] tracking-wide font-black">Semantic</div>
-                <div>
-                  <div className="text-slate-200">Syllabus Structure Map</div>
-                  <div className="opacity-75 mt-0.5 font-medium leading-relaxed">Saves custom completed statuses, study notes memory block, and bento index locations under the {activePlan ? 'active' : 'default'} database profile.</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-900/60">
-                <div className="p-1 px-1.5 rounded bg-emerald-500/10 text-emerald-400 uppercase text-[9px] tracking-wide font-black">Episodic</div>
-                <div>
-                  <div className="text-slate-200">Evaluation Quiz Score logs</div>
-                  <div className="opacity-75 mt-0.5 font-medium leading-relaxed">Logs 10-Question quiz accuracies, chronological completion dates, and correct answers. ({scoreHistory.length} quiz records)</div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-        </div>
-
-        {/* RIGHT COLUMN: THE ELEVEN-BOX TOPIC BENTO BOARD MATRIX */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
-
-          {activePlan && activePlan.finalized ? (
-            <div className="flex flex-col gap-6">
-              
-              {/* COMPREHENSIVE ROADMAP DESCRIPTION HEADER */}
-              <div className="bg-slate-900/50 border border-slate-850 p-5 rounded-2xl flex justify-between items-center">
-                <div>
-                  <span className="text-[10px] bg-slate-800 border border-slate-750 text-slate-350 px-2.5 py-1 rounded-full font-black tracking-widest uppercase mb-2 inline-block">Active Plan</span>
-                  <h3 className="text-lg font-black text-white">{activePlan.role}</h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">{activePlan.experience_level} Experience Tier • Compiled dynamically using Gemini</p>
-                </div>
-                
-                {/* GLOBAL WORKSPACE PROGRESS RADAR */}
-                <div className="flex flex-col items-center shrink-0">
-                  <div className="w-14 h-14 rounded-full border-4 border-slate-800 flex items-center justify-center relative bg-slate-950">
-                    <span className="text-xs font-black text-sky-400">
-                      {Math.round((activePlan.topics.filter(t => t.completed).length / 11) * 100)}%
-                    </span>
-                  </div>
-                  <span className="text-[9px] font-black uppercase text-slate-500 mt-1.5">Progress</span>
-                </div>
-              </div>
-
-              {/* THE 11 DIFFERENT BENTO TOPIC GRID BRIDGING CUTOUTS */}
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                    <Database className="w-3.5 h-3.5 text-sky-400" /> Syllabus Matrix (11 dynamic cutouts)
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-bold">Click topics to load custom cards & quizzes</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {activePlan.topics.map((topic, i) => {
-                    const idx = i + 1;
-                    const isCompleted = topic.completed;
-                    
-                    return (
-                      <div
-                        key={topic.id || idx}
-                        onClick={() => {
-                          setSelectedTopic(topic);
-                          setTopicNotes(topic.notes || '');
-                          setQuizQuestions([]);
-                        }}
-                        className={`group relative p-5 rounded-2xl border cursor-pointer hover:shadow-2xl transition-all duration-350 flex flex-col justify-between min-h-[140px]
-                          ${selectedTopic?.id === topic.id 
-                            ? 'bg-sky-950/20 border-sky-400 text-sky-300 ring-2 ring-sky-400/20' 
-                            : 'bg-slate-900 hover:bg-slate-850 border-slate-800'
-                          }
-                        `}
-                      >
-                        {/* Number Index Cutout Badge */}
-                        <div className="flex justify-between items-start gap-2 mb-3">
-                          <span className="font-mono text-xs font-semibold text-slate-500 group-hover:text-sky-400 transition-colors">
-                            #{String(idx).padStart(2, '0')}
-                          </span>
-                          
-                          {/* Completion Badge Check */}
-                          {isCompleted ? (
-                            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 p-1 px-1.5 rounded-lg text-[9px] tracking-wide font-black uppercase leading-none">
-                              Completed ✓
-                            </span>
-                          ) : (
-                            <span className="bg-slate-950 text-slate-500 border border-slate-800/60 p-1 px-1.5 rounded-lg text-[9px] tracking-wide font-black uppercase leading-none">
-                              Open
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Text description details */}
-                        <div className="mb-2">
-                          <h4 className="font-black text-xs sm:text-sm text-slate-100 group-hover:text-sky-300 transition-colors line-clamp-2">
-                            {topic.name}
-                          </h4>
-                        </div>
-
-                        <div className="text-[10px] text-slate-400 opacity-80 leading-normal line-clamp-2 font-medium mt-auto group-hover:text-slate-300 transition-colors">
-                          {topic.description}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* DYNAMIC TOPIC ACTIVE DETAIL COMPONENT INTERFACE (Unlocks detail cards,Detailed Reference Link, 10-Question Quiz) */}
-              <AnimatePresence mode="wait">
-                {selectedTopic && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 15 }}
-                    transition={{ duration: 0.3 }}
-                    className="bg-slate-900 border-2 border-sky-500/20 rounded-3xl p-6 sm:p-8 flex flex-col gap-6 shadow-2xl relative"
-                  >
-                    
-                    {/* Header bar */}
-                    <div className="flex justify-between items-start gap-4 border-b border-slate-800 pb-5">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] bg-sky-500/10 text-sky-400 font-extrabold px-2 py-0.5 rounded uppercase font-mono">
-                            Focus cutout #{selectedTopic.id}
-                          </span>
-                          
-                          {/* Topic completed toggle */}
-                          <button
-                            type="button"
-                            onClick={() => handleToggleTopicCompleted(selectedTopic.id)}
-                            className={`p-1 px-2 text-[10px] font-bold rounded-lg border cursor-pointer transition-all flex items-center gap-1
-                              ${selectedTopic.completed 
-                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' 
-                                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-                              }
-                            `}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                            <span>{selectedTopic.completed ? 'Topic Completed' : 'Mark Completed'}</span>
-                          </button>
-                        </div>
-                        <h4 className="text-xl font-black text-slate-100 mt-2">{selectedTopic.name}</h4>
-                        <p className="text-xs text-slate-450 mt-1 leading-relaxed font-semibold">{selectedTopic.description}</p>
-                      </div>
-
-                      <button
-                        onClick={() => { setSelectedTopic(null); setQuizQuestions([]); }}
-                        className="p-1 px-2 text-slate-400 hover:text-white rounded-lg border border-slate-800 hover:bg-slate-850 cursor-pointer transition-all duration-200"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* DYNAMIC SUBTOPIC DETAIL CARDS */}
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-3">Key Study cards</span>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {selectedTopic.cards && selectedTopic.cards.map((card, cIdx) => (
-                          <div 
-                            key={cIdx}
-                            className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col justify-between gap-3 text-xs"
-                          >
-                            <div>
-                              <h5 className="font-extrabold text-slate-200">{card.title}</h5>
-                              <p className="opacity-80 mt-1.5 leading-relaxed font-semibold text-slate-450 font-sans">{card.content}</p>
-                            </div>
-                            
-                            {card.code && (
-                              <pre className="bg-slate-900 border border-slate-850 p-2.5 rounded font-mono text-[10px] text-sky-400 overflow-x-auto select-all max-h-[80px]" title="Diagnostic architecture snippet">
-                                <code>{card.code}</code>
-                              </pre>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* NOTES MEMORY INTERACTION SECTION (Structured note memory) */}
-                    <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col gap-3">
-                      <div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                          <StickyNote className="w-3.5 h-3.5 text-sky-400" /> Topic Study companion notes & summary
-                        </span>
-                        <p className="text-[10px] text-slate-500 leading-normal mt-0.5">Pen down your active recall formulations, mock review formulas, or diagnostic exceptions. These will be logged inside the preparation plan memory structure permanently.</p>
-                      </div>
-
-                      <textarea
-                        value={topicNotes}
-                        onChange={(e) => setTopicNotes(e.target.value)}
-                        placeholder="Write custom explanations, acronym notes, or STAR scenarios in markdown format for review later."
-                        className="bg-slate-900/60 p-3 h-24 rounded-lg text-xs font-semibold text-slate-250 outline-none border border-slate-800 focus:border-sky-500 resize-none leading-relaxed"
-                      />
-
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={handleSaveNotesMemory}
-                          disabled={isSavingNotes}
-                          className="bg-slate-800 hover:bg-slate-700 text-sky-400 text-[10px] font-extrabold uppercase px-4 py-2 border border-slate-750 hover:border-sky-500/30 rounded-lg transition-all cursor-pointer"
-                        >
-                          {isSavingNotes ? 'Recording Notes...' : '✓ Record Notes Memory'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* DETAILED TUTORIAL AND DEEP REFERENCE LINKS */}
-                    {selectedTopic.referenceLinks && selectedTopic.referenceLinks.length > 0 && (
-                      <div className="border-t border-slate-850 pt-4 text-xs">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Curated Deeply-grounded Learning Links</span>
-                        <div className="flex flex-wrap gap-3">
-                          {selectedTopic.referenceLinks.map((link, lIdx) => (
-                            <a 
-                              key={lIdx}
-                              href={link.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="bg-slate-950/80 hover:bg-slate-900 border border-slate-800 hover:border-sky-400 p-2.5 rounded-lg font-bold text-sky-400 flex items-center gap-1.5 transition-all text-xs"
-                            >
-                              <BookOpen className="w-3.5 h-3.5" />
-                              <span>{link.label}</span>
-                              <ChevronRight className="w-3 h-3 shrink-0 opacity-60" />
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* THE ADAPTIVE 10-QUESTION DEEP DIVES MCQ CHALLENGE */}
-                    <div className="border-t border-slate-850 pt-5 flex flex-col gap-4">
-                      <div>
-                        <h5 className="text-base font-black text-slate-100 flex items-center gap-1.5">
-                          <HelpCircle className="w-4.5 h-4.5 text-sky-400" /> Topic Testing Practice (10-questions adaptive quiz)
-                        </h5>
-                        <p className="text-xs text-slate-400 font-semibold leading-normal mt-0.5">Test your comprehension immediately. Generate a mock, grade-guided 10-question quiz explicitly matching active parameters of "${selectedTopic.name}"!</p>
-                      </div>
-
-                      {quizQuestions.length === 0 ? (
-                        <div className="flex justify-start">
-                          <button
-                            type="button"
-                            onClick={() => handleStartTopicQuiz(selectedTopic)}
-                            disabled={isQuizLoading}
-                            className="bg-sky-500 hover:bg-sky-400 text-slate-950 p-3.5 px-6 rounded-xl font-black text-xs uppercase cursor-pointer border-none shadow-md shadow-sky-500/10 flex items-center gap-2 tracking-wider"
-                          >
-                            {isQuizLoading ? (
-                              <>
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                CONSTRUCTING ADAPTIVE QUIZ QUESTIONS...
-                              </>
-                            ) : (
-                              <>
-                                <Trophy className="w-3.5 h-3.5" />
-                                Generate 10-Question Quiz
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850 flex flex-col gap-4 leading-relaxed">
-                          
-                          {/* Quiz status bar */}
-                          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            <span>Question {currentQuizIndex + 1} of {quizQuestions.length}</span>
-                            <span>Points: {quizScoreCounter} correct</span>
-                          </div>
-
-                          <div className="h-1 bg-slate-900 rounded overflow-hidden">
-                            <div 
-                              className="h-full bg-sky-500 transition-all duration-300"
-                              style={{ width: `${((currentQuizIndex + 1) / quizQuestions.length) * 100}%` }}
-                            ></div>
-                          </div>
-
-                          {showQuizResult ? (
-                            <div className="text-center py-6 flex flex-col items-center gap-4 animate-fade-in text-slate-200">
-                              <div className="w-14 h-14 rounded-full bg-sky-500/10 border border-sky-400 flex items-center justify-center text-sky-400">
-                                <Trophy className="w-6 h-6 animate-pulse" />
-                              </div>
-                              <div>
-                                <h6 className="font-black text-base">Quiz Completed!</h6>
-                                <p className="text-xs text-slate-400 font-medium leading-relaxed mt-1 max-w-sm">
-                                  You cleared the adaptive assessment with an overall score ratio of <strong>{quizScoreCounter} / {quizQuestions.length}</strong>! This has been cataloged inside your episodic performance memory dashboard.
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleStartTopicQuiz(selectedTopic)}
-                                className="bg-slate-800 hover:bg-slate-750 text-sky-400 font-black text-xs px-4 py-2 rounded-xl transition-all border border-slate-700 hover:border-sky-500/30 cursor-pointer uppercase"
-                              >
-                                Test Again
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col gap-4">
-                              <p className="font-extrabold text-sm text-slate-200 font-sans leading-normal">
-                                {quizQuestions[currentQuizIndex].text}
-                              </p>
-
-                              {/* MCQ OPTIONS LIST */}
-                              <div className="flex flex-col gap-2.5">
-                                {Object.entries(quizQuestions[currentQuizIndex].options || {}).map(([key, value]) => {
-                                  const isSelected = selectedQuizAnswer === key;
-                                  const isCorrectAnswer = quizQuestions[currentQuizIndex].correct_answer === key;
-                                  let optionStyle = 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-350';
-
-                                  if (isQuizAnswerSubmitted) {
-                                    if (isCorrectAnswer) {
-                                      optionStyle = 'bg-emerald-500/10 border-emerald-500 text-emerald-350';
-                                    } else if (isSelected) {
-                                      optionStyle = 'bg-rose-500/10 border-rose-500 text-rose-350';
-                                    } else {
-                                      optionStyle = 'bg-slate-900/40 border-slate-900 text-slate-500 pointer-events-none';
-                                    }
-                                  } else if (isSelected) {
-                                    optionStyle = 'bg-sky-500/10 border-sky-400 text-sky-300';
-                                  }
-
-                                  return (
-                                    <button
-                                      key={key}
-                                      type="button"
-                                      disabled={isQuizAnswerSubmitted}
-                                      onClick={() => handleSelectQuizAnswer(key)}
-                                      className={`w-full p-4 rounded-xl border font-semibold text-xs text-left cursor-pointer transition-all duration-150 flex items-center gap-3 ${optionStyle}`}
-                                    >
-                                      <span className={`w-6 h-6 rounded-lg font-mono font-extrabold text-[11px] uppercase flex items-center justify-center shrink-0 border
-                                        ${isSelected ? 'bg-sky-500 text-slate-950 border-sky-400' : 'bg-slate-950 border-slate-800'}
-                                      `}>
-                                        {key}
-                                      </span>
-                                      <span className="leading-snug">{value as string}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-
-                              {/* EVALUATION GRADE OR FOOTER ACTION */}
-                              <div className="flex items-center justify-between border-t border-slate-850 pt-4 mt-2">
-                                <div className="text-xs">
-                                  {isQuizAnswerSubmitted ? (
-                                    <div className="flex items-center gap-1.5">
-                                      {selectedQuizAnswer === quizQuestions[currentQuizIndex].correct_answer ? (
-                                        <span className="text-emerald-400 font-extrabold flex items-center gap-1">✓ Grade: Correct</span>
-                                      ) : (
-                                        <span className="text-rose-400 font-extrabold flex items-center gap-1">✗ Grade: Incorrect</span>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Select an option to evaluate</span>
-                                  )}
-                                </div>
-
-                                {!isQuizAnswerSubmitted ? (
-                                  <button
-                                    type="button"
-                                    onClick={handleSubmitQuizAnswer}
-                                    disabled={!selectedQuizAnswer}
-                                    className={`p-2.5 px-6 rounded-xl text-xs font-black uppercase tracking-wider border-none transition-all
-                                      ${selectedQuizAnswer 
-                                        ? 'bg-sky-400 hover:bg-sky-350 text-slate-950 cursor-pointer' 
-                                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                      }
-                                    `}
-                                  >
-                                    Submit Grade
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={handleNextQuizQuestion}
-                                    className="bg-slate-800 hover:bg-slate-700 text-sky-400 p-2.5 px-6 rounded-xl font-black text-xs uppercase cursor-pointer border border-slate-700 hover:border-sky-500/30 transition-all flex items-center gap-1"
-                                  >
-                                    <span>{currentQuizIndex < quizQuestions.length - 1 ? 'Next Scenario' : 'View Summary'}</span>
-                                    <ChevronRight className="w-4 h-4 shrink-0" />
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* AI EXPLANATION REVEAL (Contextual memory review) */}
-                              {isQuizAnswerSubmitted && (
-                                <div className="bg-slate-950 p-4 border border-slate-900 rounded-xl mt-2 leading-relaxed text-xs">
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-sky-400 block mb-1">AI Tutor Insight</span>
-                                  <div className="text-slate-300 font-medium font-sans">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                      {quizQuestions[currentQuizIndex].explanation}
-                                    </ReactMarkdown>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                        </div>
-                      )}
-                    </div>
-
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* RETURNING SCORE HISTORIES EPIC LOG (Episodic Memory dashboard) */}
-              {scoreHistory.length > 0 && (
-                <div className="bg-slate-900 border border-slate-850 p-6 rounded-2xl flex flex-col gap-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 leading-none">
-                    <TrendingUp className="w-4 h-4 text-sky-400" /> Historical Performance Logs (Episodic Memory)
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-slate-350 font-semibold font-sans mt-1">
-                    {scoreHistory.map((score, sIdx) => {
-                      const relTopic = activePlan.topics.find(t => t.id === score.topic_id);
-                      return (
-                        <div key={sIdx} className="bg-slate-950 p-3 rounded-xl border border-slate-900 flex items-center justify-between">
-                          <div className="min-w-0 pr-2">
-                            <div className="text-slate-200 font-bold truncate">{relTopic ? relTopic.name : `Topic #${score.topic_id}`}</div>
-                            <div className="text-[10px] opacity-60 font-bold mt-0.5">{new Date(score.date).toLocaleDateString()}</div>
-                          </div>
-                          <span className="bg-slate-800 text-sky-400 font-mono font-black text-xs p-1.5 px-2 rounded-lg shrink-0">
-                            {score.score}/{score.total}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-            </div>
-          ) : (
-            
-            /* PLACEHOLDER UNTIL SYLLABUS BUILD COMPLETE */
-            <div className="bg-slate-900 p-12 sm:p-20 text-center rounded-3xl border border-slate-800 flex flex-col items-center justify-center gap-4 my-auto min-h-[400px]">
-              <div className="w-14 h-14 bg-slate-950 border border-slate-800 rounded-full flex items-center justify-center animate-pulse text-slate-400">
-                <Layout className="w-6 h-6 text-sky-400" />
-              </div>
-              <div>
-                <h4 className="text-lg font-black text-slate-100">Unlock your interview bento grid</h4>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-sm mt-1.5">
-                  Input your targeted role and specifications in Step 1. Consult the AI interview coach optionally and generate your customizable 11-topic syllabus schedule!
-                </p>
-              </div>
-            </div>
-
-          )}
-
-        </div>
-
-      </div>
-      )}
-
       {/* FOOTER */}
-      <footer className="text-center py-6 border-t border-slate-900 text-[11px] font-bold text-slate-500 bg-slate-950">
-        © 2026 PromptPass .ai — Active Interview Preparation System
+      <footer className={`text-center py-6 border-t ${isDark ? 'border-slate-900 text-slate-650 bg-slate-950/40' : 'border-slate-200 text-slate-600 bg-slate-100'} text-[11px] font-bold`}>
+        © 2026 PrepMaster .ai — Active Interview Preparation System
       </footer>
     </div>
   );

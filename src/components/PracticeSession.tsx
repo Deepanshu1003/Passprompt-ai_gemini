@@ -568,7 +568,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
         </button>
         <div className="flex items-center gap-1.5">
           <AppLogo />
-          <span className="font-extrabold text-white text-base tracking-tight">PromptPass</span>
+          <span className="font-extrabold text-white text-base tracking-tight">PrepMaster</span>
         </div>
         <button onClick={() => setDirectoryOpen(true)} className="p-2 -mr-2 hover:bg-slate-800 rounded-lg text-sky-400">
           <Layers className="w-5 h-5" />
@@ -583,7 +583,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-2">
             <AppLogo />
-            <h1 className="text-xl font-black text-white tracking-tight">PromptPass</h1>
+            <h1 className="text-xl font-black text-white tracking-tight">PrepMaster</h1>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5 hover:bg-slate-800 rounded-lg">
             <X className="w-5 h-5 text-slate-400" />
