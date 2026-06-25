@@ -1,46 +1,67 @@
-# PrepMaster - Complete Application & Engineering Specification
-*Drafted for Google AI Studio Build & Code Generator Agents*
+# PrepMaster - Technical Engineering & Flow Specification
+*Official Technical Blueprint & Implementation Reference Guide*
 
-This document provides a highly detailed, comprehensive roadmap of the **PrepMaster** full-stack ecosystem. By feeding this specification to any modern language model or the Google AI Studio builder, a duplicate or upgraded version of the system can be generated with absolute parity.
-
----
-
-## 1. Product Identity & Core Philosophy
-
-**PrepMaster** is an elegant, full-stack, AI-powered preparation suite for high-stakes certification examinations (e.g., AWS Certified Solutions Architect, PMP, Scrum Master). The system is built around several unique, student-first constraints:
-
-1. **Anti-Clutter Layout**: Avoid traditional overbearing controls in favor of an immersive "learning theater".
-2. **Device-Isolated Workspaces**: By default, different devices or browser tabs run within a custom, secure sandbox (driven by a unique workspace token `x-device-id` passed in request headers). Users can pair devices manually via a "Sync / Swap" control if they wish, but uploads on one device never pollute another.
-3. **Resilient Offline Continuity**: If network integrity is lost, users can continue studying, testing, and self-evaluating off cached questions, options, flashcards, and historical scores, synchronizing seamlessly once connectivity returns.
-4. **Distraction-Free Parsing**: Page numbers, footer timestamps, and text fragments generated during document parses are aggressively stripped out using a standardized deterministic pattern.
+This document serves as the absolute engineering specification for the **PrepMaster** full-stack ecosystem. It maps out detailed data structures, API pipelines, logical flows, state synchronization mechanics, and specialized runtime safeguards.
 
 ---
 
-## 2. Technical Stack Overview
+## 🏛️ 1. Core Architectural Layout
 
-* **Frontend Framework**: React 19 (TypeScript, functional components with hooks, custom client-side cache and event-stream hook processing).
-* **Styling**: Tailwind CSS utilizing deep off-whites, modern slate dark colors (`bg-slate-900`/`bg-slate-850`), rich emerald feedback tags, precise spacing grids, and a highly optimized dual-theme interface.
-* **Unified Theme Engine**: Single global dark/light state persisted in `localStorage` and shared synchronously across all dashboard interfaces, certification session rooms, bento matrices, and evaluation panels.
-* **Backend Server**: Express.js with custom SSE (Server-Sent Events) streaming pipelines. Production build compiles into a single CommonJS bundled file `dist/server.cjs` via `esbuild`.
-* **Database**: High-speed JSON flat-file storage engine (`src/db.json` with a structured `dbStore` helper class in `src/db.ts`), supporting local multi-tenant workspaces through a `device_id` filter.
-* **LLM Core**: Google GenAI TypeScript SDK (`@google/genai`) using `gemini-3.5-flash`.
-* **Animations**: Pure styled transitions with clean hover-states and smooth viewport entrance animations.
-* **Iconography**: Clean vector glyphs exclusively imported from `lucide-react`.
+PrepMaster is designed as a secure, sandboxed, full-stack application. It leverages a lightweight Express server hosting standard API routes and custom streaming pipelines, serving a highly responsive React client:
+
+```text
+                        ┌──────────────────────────────────────┐
+                        │             React Client             │
+                        │   (Global Theme, Local Device ID)    │
+                        └──────────────────┬───────────────────┘
+                                           │
+                        ┌──────────────────▼───────────────────┐
+                        │          HTTP REST Requests          │
+                        │    (With Header: x-device-id)        │
+                        └──────────────────┬───────────────────┘
+                                           │
+                                           ├────────────────────────┐
+                                           │                        │
+                        ┌──────────────────▼───────────────────┐ ┌──▼──────────────────┐
+                        │         Express Web Backend          │ │  SSE Stream (Chat)  │
+                        │            (server.ts)               │ │  (Real-Time Bytes)  │
+                        └──────────────────┬───────────────────┘ └─────────────────────┘
+                                           │
+                        ┌──────────────────▼───────────────────┐
+                        │      Google Gemini API (SDK)         │
+                        │   (Rate Failover: 3.5 -> 3.1 Lite)   │
+                        └──────────────────┬───────────────────┘
+                                           │
+                        ┌──────────────────▼───────────────────┐
+                        │       High-Speed JSON Flat DB        │
+                        │    (Multi-Tenant Device Filtering)   │
+                        └──────────────────────────────────────┘
+```
 
 ---
 
-## 3. Database Schema (`src/db.json` & `src/types.ts`)
+## 💾 2. Multi-Tenant Custom Storage Engine
 
-The raw flat-file DB maps three primary collections under separate keys, filtered dynamically by client-provided `x-device-id` headers to maintain independent sandboxing:
+To guarantee secure, isolated study environments without requiring heavy, multi-user cloud infrastructure or exposing user data across browser sessions, PrepMaster implements a custom multi-tenant flat-file storage engine.
+
+### A. Device Identification
+*   On cold start, the client generates a unique cryptographic device identifier prefix (e.g., `DEV_ABCD123`) using a randomized base-36 string.
+*   This identifier is saved instantly to the client's `localStorage` under the `prepmaster_device_id` namespace.
+*   For all HTTP and streaming requests, the client appends this token as a custom header: `x-device-id`.
+
+### B. Database Schema (`src/types.ts`)
+The server persistent database (`src/db.json`) is managed by `src/db.ts` and structured under strongly-typed TypeScript models:
 
 ```typescript
+// 1. Plan Model representing Certification Rooms
 export interface ExamPlan {
   id: string;          // Cryptographic random UUID
   name: string;        // E.g., "AWS Solutions Architect Associate"
   created_at: string;  // ISO timestamp string
-  device_id: string;   // Device/browser sandbox binding identifier
+  device_id: string;   // Device sandbox binding identifier
 }
 
+// 2. Question Model for Certification Rooms
 export interface Question {
   id: string;               // Cryptographic random UUID
   exam_plan_id: string;     // Foreign key pointing to ExamPlan
@@ -50,6 +71,7 @@ export interface Question {
   correct_answer?: string;  // Single character correct choice (e.g. "B")
 }
 
+// 3. User Attempt Model for tracking Certification responses
 export interface UserAttempt {
   id: string;               // Cryptographic random UUID
   question_id: string;      // Foreign key pointing to Question
@@ -59,140 +81,189 @@ export interface UserAttempt {
   explanation: string;      // Persistent AI evaluation text response
   attempted_at: string;     // ISO timestamp string
 }
+
+// 4. Client Progress state compiling active status
+export interface ProgressItem {
+  question_id: string;
+  question_number: number;
+  status: 'green' | 'red' | 'gray'; // green = correct, red = incorrect, gray = incomplete
+  selected_answer?: string;         // The user's chosen options
+  explanation?: string;             // Saved AI response string
+}
 ```
 
 ---
 
-## 4. REST & Streaming API Endpoints (`server.ts`)
+## 📡 3. REST & Streaming API Specification (`server.ts`)
 
-The Express backend services request parameters accompanied by an optional / mandatory `'x-device-id'` header:
+Endpoints process the header `x-device-id` to scope database lookups dynamically.
 
-### `GET /api/plans`
-* **Response**: `ExamPlan[]`
-* **Logic**: Returns all exam plans belonging strictly to the client's `x-device-id`. If no header is provided, returns an empty array.
+### A. Plan & Question Management
+*   `GET /api/plans`: Reads all `ExamPlan` objects where `device_id` matches the incoming header.
+*   `GET /api/plans/:planId/questions`: Resolves parsed exam questions. Asserts ownership checks.
+*   `GET /api/plans/:planId/progress`: Combines `UserAttempt` arrays and `Question` maps to return structured `ProgressItem` arrays for instantaneous visual feedback in sidebars and progress rings.
+*   `POST /api/plans/:planId/delete`: Purges the plan, questions, and attempt rows matching the device ID safely.
 
-### `POST /api/upload`
-* **Payload**: Form-data containing a `file` field (plaintext or PDF).
-* **Headers**: `x-device-id` (Required)
-* **Logic**: Generates a new `ExamPlan` with the uploaded file name. Calls the document parser, extracts structured questions with clean Regex-based page-number scrubbing, and stores them under the newly created plan ID for that device sandbox.
+### B. The Real-Time SSE (Server-Sent Events) Pipeline
+To prevent request timeouts and deliver a snappy learning workspace, answer evaluations and chat responses utilize a direct streaming SSE server connection:
 
-### `GET /api/plans/:planId/questions`
-* **Response**: `Question[]`
-* **Logic**: Retrieves the complete array of parsed questions matching the plan ID, verifying device sandbox ownership.
-
-### `GET /api/plans/:planId/progress`
-* **Response**: `ProgressItem[]`
-* **Logic**: Compiles real-time evaluation status for the plan.
-* **Structured Payload**:
-  ```typescript
-  export interface ProgressItem {
-    question_id: string;
-    question_number: number;
-    status: 'green' | 'red' | 'gray'; // green = correct, red = incorrect, gray = incomplete
-    selected_answer?: string;         // The user's chosen options
-    explanation?: string;             // Saved AI response string
-  }
-  ```
-
-### `POST /api/evaluate`
-* **Payload**: `{ question_id: string, selected_answer: string }`
-* **Headers**: `x-device-id` (Required)
-* **Response**: Streaming SSE connection where chunk updates write the AI response.
-* **Logic**: Formulates Gemini API evaluation prompt. Evaluates correctness, returns a standard `GRADE: CORRECT` or `GRADE: INCORRECT` marker, stream-pipes the concise explanation to the client, and writes the complete `UserAttempt` securely into the DB flat file on conclusion to guarantee future reload state persistence.
-
-### `POST /api/plans/:planId/delete`
-* **Logic**: Safely purges an examination plan and all associated questions and attempts linked with that ID for the requested device.
+1.  **Request Initiation**: Client sends a POST request with payload `{ question_id, selected_answer }` to `/api/evaluate`.
+2.  **SSE Connection Boot**: Server configures standard headers:
+    ```http
+    Content-Type: text/event-stream
+    Cache-Control: no-cache
+    Connection: keep-keep-alive
+    ```
+3.  **Prompt Delivery**: The backend wraps the question, options, and choice with a strict prompt envelope and sends it to the Gemini API.
+4.  **Token Streaming**: As Gemini returns chunks, the Express server writes them immediately to the response socket using standard SSE formats (`data: [chunk_content]\n\n`).
+5.  **Final Compilation**: Once the streaming session finishes, the complete string is saved in the database under `UserAttempt`, and a special `[DONE]` marker is transmitted, signalling the client to close the reader safely.
 
 ---
 
-## 5. Clean Question & Option Text Filters (`src/parser.ts`)
+## 🧙‍♂️ 4. The 4-Step Recruiter Consultation Flow
 
-To avoid "page number bleed-through" in options (e.g., options ending in `page no. 12` or `-- 12 of 200 --`), the string processor scrubs incoming text using a twin-phase strategy:
+The interview preparation section uses a multi-stage wizard to transition students from raw resumes to fully personalized interactive syllabus workspaces:
 
-```typescript
-// Deterministic page footer cleaner regex patterns:
-const pageCleanup = /(?:--|-|\[)?\s*\d+\s+(?:of|OF)\s+\d+\s*(?:--|-|\])?|\b(?:page|Page|PAGE|pg\.?|Pg\.?)\s*(?:no|num|number|#)?\.?\s*\d+\s*(?:of\s*\d+)?\b/gi;
-
-// Clean text outputs cleanly inside parsing blocks:
-let questionText = rawText.replace(pageCleanup, '').trim().replace(/--\s*$/, '').trim();
-let optionValue = rawValue.replace(pageCleanup, '').replace(/--\s*$/, '').replace(/\s+/g, ' ').trim();
-```
-
----
-
-## 6. Prompt Engineering System (`src/ai_service.ts`)
-
-The application configures specific context envelopes for Gemini prompts, ensuring outputs remain optimized for clear, concise, and focused training:
-
-### Strict AI Evaluation Prompt Rules
 ```text
-Evaluate the user's selected choice against the given exam question.
-
-Instructions:
-1. Determine whether the answer is correct or incorrect.
-2. Start your response EXACTLY with:
-   GRADE: CORRECT (if correct)
-   OR
-   GRADE: INCORRECT (if incorrect)
-
-3. Format the evaluation response according to the grade:
-   - If the answer is CORRECT:
-     Provide only a very brief summary/confirmation in just a few words (max 15-20 words). Keep it extremely concise (e.g., "Correct! Excellent understanding of the concept."). Do NOT write any structured detailed sections, redundant explanations, or tips.
-   - If the answer is INCORRECT:
-     Clearly identify the correct option (e.g., "The correct answer is B.") and expand in just a few words explaining why (max 50 words). Keep it digestible and direct.
-
-Use Markdown formatting.
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│     Step 1      │      │     Step 2      │      │     Step 3      │      │     Step 4      │
+│  Resume Intake  ├─────►│  Fit Analysis   ├─────►│  Coach Consult  ├─────►│   Compilation   │
+│  (Plain Text)   │      │  (Role Selection)│      │  (Interactive)  │      │  (Bento Board)  │
+└─────────────────┘      └─────────────────┘      └─────────────────┘      └─────────────────┘
 ```
 
----
-
-## 7. Interactive Keyboard Mappings (`src/components/PracticeSession.tsx`)
-
-Students can move rapidly through practice reviews using physically intuitive key bindings, bound to keydown events:
-
-* **ArrowRight (`→`) / ArrowLeft (`←`)**: Jumps to the immediate next or preceding question in the numerical map.
-* **Keys `1` through `6`**: Directly toggles multiple-choice select nodes (`A` through `F`).
-* **`Enter`**: Submits the selected answer instantly to trigger the AI streaming evaluation.
-* **`Ctrl + Enter` / `Cmd + Enter`**: Sends active follow-up questions to the smart chatbot companion directly.
+1.  **Step 1: Bio Intake**: Captures plaintext bio data or parsed resumes. If empty, the system provides standard templates corresponding to active engineering tracks.
+2.  **Step 2: Recruiter Suggestions**: Calls Gemini to evaluate fit across hierarchical seniorities (Junior, Mid, Senior, Principal) for selected specialized roles. Displays interactive cards with estimated fit ratings and critical target keywords.
+3.  **Step 3: Coach Consultation**: Opens a live conversational chat with the Virtual Coach. The client can customize technical boundaries (e.g., fine-tuning models, building advanced RAG, configuring `@google/genai` wrappers) or upload a custom syllabus.
+4.  **Step 4: Compiling Bento Board**: Triggers a final syllabus compilation. The AI parses the conversation log, maps **8 to 15 key chapters**, details concepts, drafts mock MCQs, and writes the structured workspace into the database.
 
 ---
 
-## 8. Client Offline Synchronization Rules (`src/offlineCache.ts`)
+## 🛡️ 5. Zero-Downtime Model Failover System ( v2.4.1 )
 
-To protect user progress in unstable environments, the active state mirrors metadata to `localStorage` under independent key blocks:
+To prevent study disruptions from API rate limits, daily quotas (such as the 20-request limit on free tiers), or transient service outages, the backend implements an advanced failover model shield inside `src/ai_service.ts`:
 
 ```typescript
-export const getOrCreateDeviceId = (): string => {
-  let id = localStorage.getItem('prepmaster_device_id');
-  if (!id) {
-    id = 'DEV_' + Math.random().toString(36).substring(2, 9).toUpperCase();
-    localStorage.setItem('prepmaster_device_id', id);
-  }
-  return id;
-};
+// Core implementation design inside ai_service.ts
+import { GoogleGenAI } from "@google/genai";
 
-// Mirroring targets hook to preserve:
-// - getCachedPlans / cachePlans
-// - getCachedQuestions / cacheQuestions
-// - getCachedProgress / cacheProgress
+export async function generateGeminiStream(
+  prompt: string,
+  onChunk: (text: string) => void
+): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  let fullText = "";
+
+  try {
+    // Attempt 1: Target primary high-intelligence model
+    const responseStream = await ai.models.generateContentStream({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+    });
+
+    for await (const chunk of responseStream) {
+      if (chunk.text) {
+        fullText += chunk.text;
+        onChunk(chunk.text);
+      }
+    }
+    return fullText;
+
+  } catch (error: any) {
+    console.warn("Primary Model Error (Redirecting to fallback):", error.message || error);
+    
+    // Attempt 2: Fallback to high-availability light model
+    try {
+      const fallbackStream = await ai.models.generateContentStream({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+
+      // Send a silent visual cue to client if needed, or simply streams seamlessly
+      for await (const chunk of fallbackStream) {
+        if (chunk.text) {
+          fullText += chunk.text;
+          onChunk(chunk.text);
+        }
+      }
+      return fullText;
+
+    } catch (fallbackError: any) {
+      console.error("Critical: Fallback Model failed:", fallbackError.message);
+      throw new Error("All model allocation routes exhausted. Please verify API configuration.");
+    }
+  }
+}
 ```
 
 ---
 
-## 9. Tablet & iPad Adaptability Setup
+## 🛠️ 6. Live Syllabus Rewrite Engine
 
-To guarantee pristine visibility on any tablet screen standard viewport size, the visual framework shifts breakpoints selectively:
+Instead of locking students into static roadmap chapters, the Bento Board provides a **Live AI Playbook Expander and Coach**.
 
-* Sidebars transition to overlay drawers using the modern `lg` (1024px) breakpoint rather than the default `md` (768px). This grants iPad users operating in portrait or landscape orientations full, un-squeezed reading rows for complex exam scenarios.
-* Sliding panels use pure CSS slide-out drawers, accessible instantly through a hamburger menu on tablet screens.
+*   **Natural Language Customization**: Students submit adjustment queries directly to the coach (e.g., *"Focus more on fine-tuning LLMs with LoRA"*).
+*   **Prompt-Driven Mutation**: The server receives the text, passes the active syllabus structure to Gemini, and commands the AI to refactor, expand, insert, or merge bento board chapter nodes.
+*   **Seamless In-DB Sync**: The revised structure updates the database instantaneously and forces a clean client bento re-render with elegant sliding animations.
 
 ---
 
-## 10. Unified Theme Engine Specification
+## 🎨 7. Unified Theme State Synchronization
 
-To ensure a seamless visual transition during late-night or daylight study sessions, **PrepMaster** features a fully integrated dual-theme system:
+To prevent discordant visual layouts, PrepMaster enforces a single global theme state synchronized through a centralized layout pattern.
 
-* **State Synchronization**: The dark mode state (`isDark` and `setIsDark`) is held globally at the root `App` component level and fed directly to child views (`InterviewPrep` and `PracticeSession`). This completely avoids flickering or visual mismatch states when changing workspaces.
-* **Persistent Settings**: The state automatically synchronizes with `localStorage` under the `interview_theme` namespace, loading light or dark preferences seamlessly on cold starts.
-* **Responsive Visual Cues**: Switches across views are rendered via micro-animated `Sun` and `Moon` vector icons from `lucide-react`, matching the container's background transitions dynamically.
+### A. Core State Setup
+```typescript
+// App.tsx
+const [isDark, setIsDark] = useState<boolean>(() => {
+  const cached = localStorage.getItem('interview_theme');
+  if (cached) return cached === 'dark';
+  // Fallback to media query
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+});
 
+useEffect(() => {
+  localStorage.setItem('interview_theme', isDark ? 'dark' : 'light');
+}, [isDark]);
+```
+
+### B. Synchronized Context Propagation
+*   The `isDark` variable and its toggler are passed down to all active components (`PracticeSession` and `InterviewPrep`).
+*   Tailwind utility styles resolve lookups natively using conditional templates:
+    ```tsx
+    <div className={`p-6 rounded-2xl ${isDark ? 'bg-slate-900 text-slate-100 border-slate-800' : 'bg-white text-slate-800 border-slate-200'}`}>
+    ```
+*   This ensures zero visual flicker and perfectly coordinates code blocks, modals, and charts.
+
+---
+
+## 📝 8. MCQ Quiz State & Score Persistence
+
+Spot-quizzes preserve user state robustly so students never lose progress upon page refreshes, sidebar interactions, or workspace toggles:
+
+*   **Local State Isolation**: Maintains an active `currentIndex`, `selectedAnswer`, and `score` mapping.
+*   **DB Synchronization**: Saves the active progress matrix into the user's database session under the active chapter node.
+*   **Cold-Start Recovery**: When opening a chapter bento, the component reads the matching chapter's persistent quiz states, automatically restoring user answer history and position.
+
+---
+
+## ⌨️ 9. Interactive Hotkeys Reference
+
+To minimize trackpad usage during heavy study sprints, the application maps physical keys directly to state changes:
+
+| Key Command | Action triggered in Workspace |
+|:---|:---|
+| `ArrowRight` ( `→` ) | Jump to the **next** question in the active exam. |
+| `ArrowLeft` ( `←` ) | Jump to the **preceding** question in the active exam. |
+| `Keys 1 to 6` | Toggle radio button choices `A` through `F` dynamically. |
+| `Enter` | Submit the selected option to trigger the Streaming Evaluator. |
+| `Ctrl / Cmd + Enter` | Post follow-up messages to the side-by-side tutor chatbot instantly. |
+
+---
+
+## 📱 10. iPad & Tablet Viewport Ergonomics
+
+To support students working on the go, PrepMaster adjusts layout configurations selectively:
+
+*   **Sidebar Overlay Breakpoints**: Sidebars collapse into responsive overlay drawers starting at `lg` (1024px) rather than the default `md` (768px). This protects the center learning theater layout on standard iPad viewports.
+*   **Column-Span Transitions**: In desktop view, collapsing the syllabus list or tutor panels smoothly shifts the central concept layout col-span from `col-span-6` to a wide `col-span-12`, maximizing code-reading space.
