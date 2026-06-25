@@ -10,7 +10,7 @@ dotenv.config();
 
 import { dbStore } from './src/db.js';
 import { parseQuestionFile } from './src/parser.js';
-import { streamEvaluation, streamChat, streamInterviewConsultation, generateInterviewTopics, editExistingInterviewPlan, generateInterviewTopicQuiz, streamTopicChat, suggestTargetedRoles } from './src/ai_service.js';
+import { streamEvaluation, streamHint, streamChat, streamInterviewConsultation, generateInterviewTopics, editExistingInterviewPlan, generateInterviewTopicQuiz, streamTopicChat, suggestTargetedRoles, expandTopicCards } from './src/ai_service.js';
 
 const app = express();
 const PORT = 3000;
@@ -219,6 +219,53 @@ app.post('/api/evaluate', async (req: Request, res: Response) => {
   }
 });
 
+app.post('/api/hint', async (req: Request, res: Response) => {
+  const { question_id } = req.body;
+  const deviceId = req.headers['x-device-id'] as string | undefined;
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
+
+  if (!question_id) {
+    res.status(400).json({ detail: 'question_id is required' });
+    return;
+  }
+
+  try {
+    // Find the question first
+    const plans = await dbStore.getPlans(deviceId);
+    let question = null;
+    for (const p of plans) {
+      const qs = await dbStore.getQuestions(p.id);
+      const found = qs.find(q => q.id === question_id);
+      if (found) {
+        question = found;
+        break;
+      }
+    }
+
+    if (!question) {
+      res.status(404).json({ detail: 'Question not found' });
+      return;
+    }
+
+    // Set streaming headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const hintGenerator = streamHint(question.text, question.options, modelName);
+
+    for await (const chunk of hintGenerator) {
+      res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+    }
+
+    res.end();
+
+  } catch (err: any) {
+    console.error('[SERVER] Hint error:', err);
+    res.status(500).json({ detail: err.message || 'Hint process failed' });
+  }
+});
+
 app.post('/api/chat', async (req: Request, res: Response) => {
   const { question_text, ai_explanation, user_message } = req.body;
   const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
@@ -376,6 +423,53 @@ app.post('/api/interview/edit-plan', async (req: Request, res: Response) => {
     res.json(updatedTopics);
   } catch (err: any) {
     res.status(500).json({ detail: err.message || 'Editing key topics learning template failed' });
+  }
+});
+
+app.post('/api/interview/expand-topic', async (req: Request, res: Response) => {
+  const { plan_id, topic_id, custom_instructions } = req.body;
+  const deviceId = (req.headers['x-device-id'] as string) || '';
+  const modelName = (req.headers['x-gemini-model'] as string) || 'gemini-3.5-flash';
+
+  if (!plan_id || !topic_id) {
+    res.status(400).json({ detail: 'plan_id and topic_id are required' });
+    return;
+  }
+
+  try {
+    const plan = await dbStore.getInterviewPlan(plan_id, deviceId);
+    if (!plan) {
+      res.status(404).json({ detail: 'Interview plan not found' });
+      return;
+    }
+
+    const topicIndex = plan.topics.findIndex(t => t.id === topic_id);
+    if (topicIndex === -1) {
+      res.status(404).json({ detail: 'Topic not found in this plan' });
+      return;
+    }
+
+    const topic = plan.topics[topicIndex];
+    
+    // Call the AI expand service
+    const newCards = await expandTopicCards(
+      plan.role,
+      plan.experience_level,
+      topic.name,
+      topic.description,
+      custom_instructions || '',
+      modelName,
+      topic.cards || []
+    );
+
+    // Update topic cards list
+    topic.cards = newCards;
+    
+    const saved = await dbStore.saveInterviewPlan(plan);
+    res.json(saved);
+  } catch (err: any) {
+    console.error('[SERVER] Expand topic error:', err);
+    res.status(500).json({ detail: err.message || 'Failed to expand topic playbooks' });
   }
 });
 

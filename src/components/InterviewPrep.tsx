@@ -27,26 +27,31 @@ import {
   MessageCircle,
   User,
   FileUp,
-  UploadCloud
+  UploadCloud,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  ChevronDown,
+  ChevronUp,
+  Menu,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { InterviewPlan, InterviewTopicDetails, InterviewQuizScore, ChatMessage } from '../types';
 import { getOrCreateDeviceId, getActiveGeminiModel } from '../offlineCache';
 
 interface InterviewPrepProps {
   onBackToHome: () => void;
+  isDark: boolean;
+  setIsDark: (dark: boolean) => void;
 }
 
-export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
+export default function InterviewPrep({ onBackToHome, isDark, setIsDark }: InterviewPrepProps) {
   // Metadata states
   const [deviceId] = useState<string>(getOrCreateDeviceId());
   const [plans, setPlans] = useState<InterviewPlan[]>([]);
   const [activePlan, setActivePlan] = useState<InterviewPlan | null>(null);
-  
-  // Theme state: default to dark, saved in local storage
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    const saved = localStorage.getItem('interview_theme');
-    return saved !== 'light';
-  });
 
   // Target active screen page
   const [interviewScreen, setInterviewScreen] = useState<'plan' | 'bento' | 'topic'>('plan');
@@ -61,13 +66,13 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     fitReasoning: string;
     keySkillsHighlight: string[];
   }>>([]);
-  const [targetKeywords, setTargetKeywords] = useState('');
+  const [targetKeywords, setTargetKeywords] = useState('Google GenAI SDK, Vector Search, LLM Fine-Tuning, Pandas Pipelines');
   const [draftTopics, setDraftTopics] = useState<Array<{ id: string; name: string; description: string }>>([]);
   const [isDraftLoading, setIsDraftLoading] = useState(false);
   const [successPlanId, setSuccessPlanId] = useState<string | null>(null);
 
   // Creation form states
-  const [targetRole, setTargetRole] = useState('Senior Software Engineer');
+  const [targetRole, setTargetRole] = useState('Generative AI Engineer');
   const [experienceLevel, setExperienceLevel] = useState('Senior');
   const [profileBackground, setProfileBackground] = useState('');
   const [customPlanText, setCustomPlanText] = useState('');
@@ -90,7 +95,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
   const [selectedTopic, setSelectedTopic] = useState<InterviewTopicDetails | null>(null);
   const [topicNotes, setTopicNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
-  const [topicTab, setTopicTab] = useState<'chat' | 'notes'>('chat');
+  const [topicTab, setTopicTab] = useState<'chat' | 'notes' | 'quiz'>('chat');
   
   // Topic-specific Chat states
   const [topicChatInput, setTopicChatInput] = useState('');
@@ -106,6 +111,13 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
   const [scoreHistory, setScoreHistory] = useState<InterviewQuizScore[]>([]);
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [companionWide, setCompanionWide] = useState(false);
+  const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
+  const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
+  const [isExpandingTopic, setIsExpandingTopic] = useState(false);
+  const [expandInstructions, setExpandInstructions] = useState('');
 
   // Refs for Chat scrolls
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -188,7 +200,10 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     setSetupStep(1);
     setResumeText('');
     setSuggestedRoles([]);
-    setTargetKeywords('');
+    setTargetRole('Generative AI Engineer');
+    setExperienceLevel('Senior');
+    setTargetKeywords('Google GenAI SDK, Vector Search, LLM Fine-Tuning, Pandas Pipelines');
+    setProfileBackground('');
     setDraftTopics([]);
     setSuccessPlanId(null);
   };
@@ -221,22 +236,22 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
       // Fallback templates as requested to ensure zero down-time
       setSuggestedRoles([
         {
-          roleName: "Senior Fullstack Engineer",
+          roleName: "Generative AI Engineer",
           experienceTier: "Senior",
-          fitReasoning: "Based on general web engineering patterns found in your candidate profile.",
-          keySkillsHighlight: ["React 19 / TypeScript", "Node.js (Express)", "Relational Databases", "High-Performance Assets"]
+          fitReasoning: "Excellent fit for developing modern RAG architectures, prompt templates, agentic tool workflows, and semantic search configurations.",
+          keySkillsHighlight: ["Google @google/genai SDK", "Semantic Vector Indexes", "LangChain/LlamaIndex", "Context Window Management"]
         },
         {
-          roleName: "Staff Platform Architect",
-          experienceTier: "Principal/Lead",
-          fitReasoning: "Matches multi-system design, cloud container setups, and performance requirements.",
-          keySkillsHighlight: ["Express Dev Middlewares", "Scalable Schema Migrations", "API Security Proxying", "Docker Containers Infrastructure"]
+          roleName: "Lead Data Scientist",
+          experienceTier: "Lead",
+          fitReasoning: "Strong match for statistical validation, predictive models, pipeline architecture, and pandas analysis dashboards.",
+          keySkillsHighlight: ["Pandas & NumPy Pipelines", "Scikit-Learn Classifiers", "Deep Learning Architectures", "Statistical Hypothesis Testing"]
         },
         {
-          roleName: "Technical Product Manager",
-          experienceTier: "Mid-Level",
-          fitReasoning: "Suited for engineering estimation, roadmap scheduling, and technical strategy.",
-          keySkillsHighlight: ["STAR Method", "Prioritization Matrices", "Systems Estimation", "Stakeholder Alignment"]
+          roleName: "AI Solutions Architect",
+          experienceTier: "Principal",
+          fitReasoning: "Perfect for production scaling of multi-modal AI models, failover model orchestration, prompt safety guardrails, and caching strategies.",
+          keySkillsHighlight: ["Enterprise RAG Patterns", "Model Safety/Guardrails", "Token Cost Optimization", "Hybrid Semantic Caching"]
         }
       ]);
       setSetupStep(2);
@@ -473,7 +488,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
       
       // RESET ALL CREATION SELECTIONS & CHAT AS REQUESTED BY THE USER:
       setChatLog([]);
-      setTargetRole('Senior Software Engineer');
+      setTargetRole('Generative AI Engineer');
       setExperienceLevel('Senior');
       setProfileBackground('');
       setCustomPlanText('');
@@ -481,7 +496,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
       setResumeText('');
       setUploadedFileName('');
       setSuggestedRoles([]);
-      setTargetKeywords('');
+      setTargetKeywords('Google GenAI SDK, Vector Search, LLM Fine-Tuning, Pandas Pipelines');
       setDraftTopics([]);
       setPlanSource('ai_chat');
 
@@ -532,6 +547,33 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
       await handleSavePlanToDb(updatedPlan);
       setActivePlan(updatedPlan);
       await fetchInterviewPlans();
+
+      // Sync selectedTopic with newly updated topics list to prevent stale references
+      if (selectedTopic) {
+        const matching = updatedTopics.find((t: any) => t.id === selectedTopic.id || t.name.toLowerCase() === selectedTopic.name.toLowerCase());
+        if (matching) {
+          setSelectedTopic(matching);
+          setTopicNotes(matching.notes || '');
+          setQuizQuestions(matching.quizQuestions || []);
+          setCurrentQuizIndex(matching.quizCurrentIndex || 0);
+          setSelectedQuizAnswer(matching.quizSelectedAnswer !== undefined ? matching.quizSelectedAnswer : null);
+          setIsQuizAnswerSubmitted(!!matching.quizIsAnswerSubmitted);
+          setTopicNotes(matching.notes || '');
+          setQuizScoreCounter(matching.quizScoreCounter || 0);
+          setShowQuizResult(!!matching.quizCompleted);
+        } else if (updatedTopics.length > 0) {
+          const first = updatedTopics[0];
+          setSelectedTopic(first);
+          setTopicNotes(first.notes || '');
+          setQuizQuestions(first.quizQuestions || []);
+          setCurrentQuizIndex(first.quizCurrentIndex || 0);
+          setSelectedQuizAnswer(first.quizSelectedAnswer !== undefined ? first.quizSelectedAnswer : null);
+          setIsQuizAnswerSubmitted(!!first.quizIsAnswerSubmitted);
+          setQuizScoreCounter(first.quizScoreCounter || 0);
+          setShowQuizResult(!!first.quizCompleted);
+        }
+      }
+      setActiveCardIndex(0);
       
       alert('Syllabus updated successfully using AI!');
     } catch (err: any) {
@@ -584,6 +626,50 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     if (selectedTopic && selectedTopic.id === topicId) {
       setSelectedTopic(prev => prev ? { ...prev, completed: !prev.completed } : null);
     }
+  };
+
+  // Toggle Card Completed State
+  const handleToggleCardCompleted = async (topicId: string, cardIndex: number) => {
+    if (!activePlan) return;
+
+    const updatedTopics = activePlan.topics.map(t => {
+      if (t.id === topicId) {
+        const updatedCards = (t.cards || []).map((card, idx) => {
+          if (idx === cardIndex) {
+            return { ...card, completed: !card.completed };
+          }
+          return card;
+        });
+
+        // Dynamically compute topic completion: if ALL cards are completed, mark topic completed!
+        const allCompleted = updatedCards.length > 0 && updatedCards.every(c => c.completed);
+        return { ...t, cards: updatedCards, completed: allCompleted };
+      }
+      return t;
+    });
+
+    const updatedPlan = {
+      ...activePlan,
+      topics: updatedTopics
+    };
+
+    await handleSavePlanToDb(updatedPlan);
+    if (selectedTopic && selectedTopic.id === topicId) {
+      const updatedTopic = updatedTopics.find(t => t.id === topicId);
+      if (updatedTopic) {
+        setSelectedTopic(updatedTopic);
+      }
+    }
+  };
+
+  // Helper to safely resolve a dynamic search URL and replace template strings with valid terms
+  const resolveLinkUrl = (rawUrl: string, topicName: string, cardTitle?: string): string => {
+    if (!rawUrl) return '';
+    if (rawUrl.includes('${') || rawUrl.includes('encodeURIComponent')) {
+      const term = cardTitle ? `${topicName} - ${cardTitle}` : topicName;
+      return `https://www.google.com/search?q=${encodeURIComponent(term + " technical documentation guide")}`;
+    }
+    return rawUrl;
   };
 
   // Helper: saving active quiz state to DB
@@ -735,6 +821,8 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     setShowQuizResult(!!topic.quizCompleted);
     setTopicChatInput('');
     setTopicTab('chat');
+    setLeftDrawerOpen(false);
+    setRightDrawerOpen(false);
   };
 
   const handleSelectPlan = (plan: InterviewPlan) => {
@@ -872,22 +960,25 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     // 3 Default starting templates in case user is in a hurry
     const baseTemplates = [
       {
-        role: "Senior React Architect",
+        role: "Generative AI Engineer",
         level: "Senior",
-        desc: "Vite server modules, Tailwind tokens, and custom react performance hooks",
-        extra: "Expert frontend performance, dynamic hydration, responsive design system tokens, and lazy layouts"
+        desc: "LLM fine-tuning, RAG systems, agent orchestration, and Google GenAI SDK",
+        extra: "Hands-on expertise in @google/genai, semantic searching, vector databases (Pinecone/Chroma), token rate management, and agentic workflows.",
+        keywords: "Google GenAI SDK, Vector Search, LLM Fine-Tuning, Pandas Pipelines"
       },
       {
-        role: "Backend Platform Engineer",
-        level: "Lead/Principal",
-        desc: "Go microservices, Docker container routing, and Postgres database schemas",
-        extra: "Ultra high-performance APIs, transaction isolations, redis caching, and cluster deployment workflows"
+        role: "Lead Data Scientist",
+        level: "Lead",
+        desc: "Statistical modeling, pandas data pipelines, predictive ML, and scikit-learn",
+        extra: "Advanced machine learning pipelines, scikit-learn classifiers, deep neural net hyperparameter tuning, and high-fidelity statistical validation.",
+        keywords: "Pandas & NumPy Pipelines, Scikit-Learn Classifiers, Deep Learning Architectures, Statistical Hypothesis Testing"
       },
       {
-        role: "Technical Product Manager",
-        level: "Mid-Level",
-        desc: "STAR strategy, scaling estimations, and agile product roadmap estimation",
-        extra: "Engineering estimations, product life cycles, backlog prioritization matrix, and STAR interview blueprinting"
+        role: "AI Solutions Architect",
+        level: "Principal",
+        desc: "Enterprise RAG architectures, model selection, scaling inference, and guardrails",
+        extra: "Integrating multi-modal LLM providers, designing fallback strategies, safety filtering, cost-optimization, and offline semantic caches.",
+        keywords: "Enterprise RAG, Model Selection, Inference Optimization, Guardrails & Safety Filters"
       }
     ];
 
@@ -985,7 +1076,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                   <textarea
                     value={profileBackground}
                     onChange={(e) => setProfileBackground(e.target.value)}
-                    placeholder="e.g. 4+ years of Fullstack development using React, TypeScript, Node.js, and Postgres. Built multiple data visualization dashboards, scaled servers, and handled oauth authentication systems."
+                    placeholder="e.g. 3+ years of experience in Data Science and GenAI. Built multiple semantic search engines, integrated RAG pipelines with Pinecone, fine-tuned Llama models, and optimized data workflows with Pandas and NumPy."
                     className={`${thInput} focus:outline-none p-3.5 rounded-2xl text-xs font-semibold h-32 leading-relaxed resize-none`}
                   />
                 </div>
@@ -1062,6 +1153,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                         setTargetRole(item.role);
                         setExperienceLevel(item.level);
                         setProfileBackground(item.extra);
+                        setTargetKeywords(item.keywords || '');
                         setSetupStep(2);
                       }}
                       className={`p-2.5 rounded-xl text-left text-[10px] cursor-pointer transition-all hover:scale-102 border ${isDark ? 'bg-slate-950 border-slate-850 hover:bg-slate-900' : 'bg-stone-50 border-slate-205 hover:bg-stone-100'}`}
@@ -1273,7 +1365,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                           className={`p-3 rounded-xl max-w-[85%] font-medium ${
                             chat.role === 'user'
                               ? 'bg-sky-500/10 text-sky-400 border border-sky-400/20 self-end'
-                              : `${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} text-slate-300 self-start`
+                              : `${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-800 shadow-sm'} self-start`
                           }`}
                         >
                           <span className="text-[8px] font-mono leading-none block opacity-50 mb-1 font-black">
@@ -1299,7 +1391,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                       type="text"
                       value={chatMessageInput}
                       onChange={(e) => setChatMessageInput(e.target.value)}
-                      placeholder="e.g. Focus on STAR behavioral model and PostgreSQL schema optimizations..."
+                      placeholder={`e.g. Focus on STAR behavioral answers for ${targetRole} and ${targetKeywords.split(',')[0] || 'GenAI'} optimizations...`}
                       className={`flex-grow p-3 rounded-xl text-xs font-semibold focus:outline-none ${thInput}`}
                     />
                     <button
@@ -1348,7 +1440,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                     Review &amp; Lock Syllabus
                   </h4>
                   <p className={`text-[11px] ${thTextMuted} leading-relaxed font-semibold mt-1`}>
-                    This locks in a comprehensive checklist of <strong>8 to 15 key topics</strong> tailored specifically to your input configuration structure.
+                    This locks in a comprehensive checklist of <strong>curated key topics</strong> tailored specifically to your input configuration structure.
                   </p>
                 </div>
 
@@ -1358,7 +1450,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                   <textarea
                     value={customPlanText}
                     onChange={(e) => setCustomPlanText(e.target.value)}
-                    placeholder="e.g. Target Vitest and Star Behavioral methods primarily. Maximize Go microservice optimizations."
+                    placeholder={`e.g. Focus on ${targetKeywords.split(',').slice(0, 2).join(' and ') || 'GenAI'} concepts primarily. Optimize for ${targetRole} tier questions.`}
                     className={`p-2.5 focus:outline-none text-xs font-semibold rounded-xl leading-relaxed resize-none h-20 ${thInput}`}
                   />
                 </div>
@@ -1432,7 +1524,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                   Syllabus Architect Complete!
                 </h3>
                 <p className={`text-xs ${thTextMuted} font-semibold leading-relaxed max-w-sm mx-auto`}>
-                  We successfully parsed your candidate profile details, optimized learning requirements conversationally, formatted all sub-topics checklists, and compiled your unique <strong>8 to 15 modular prep chapters</strong>.
+                  We successfully parsed your candidate profile details, optimized learning requirements conversationally, formatted all sub-topics checklists, and compiled your unique <strong>modular prep chapters</strong>.
                 </p>
               </div>
 
@@ -1483,7 +1575,11 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
               </button>
             </div>
           </div>
-         // PAGE 2: THE DYNAMIC BENTO BOARD MATRIX AND SEEDLESS CLASSROOM COCKPIT
+        )}
+      </div>
+    );
+  };
+
   const renderBentoScreen = () => {
     if (!activePlan) return null;
     const totalTopics = activePlan.topics.length;
@@ -1497,8 +1593,36 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
     const currentCard = currentTopic ? (cardsList[activeCardIndex] || (cardsList[0] || { title: "Topic Summary Overview", content: currentTopic.description })) : null;
 
     return (
-      <div className="flex-grow max-w-7xl mx-auto w-full px-4 py-6 sm:py-8 flex flex-col gap-6 animate-fade-in">
+      <div className="flex-grow max-w-7xl mx-auto w-full px-4 py-6 sm:py-8 flex flex-col gap-6 animate-fade-in pt-16 md:pt-8">
         
+        {/* MOBILE MINI HEADER CONTROLS (VISIBLE ON MOBILE ONLY) */}
+        <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 text-white flex items-center justify-between px-4 z-40 shadow-md">
+          <button 
+            type="button"
+            onClick={() => {
+              setLeftPanelCollapsed(false);
+              setLeftDrawerOpen(true);
+            }} 
+            className="p-2 -ml-2 hover:bg-slate-800 rounded-lg text-sky-400 bg-transparent border-none cursor-pointer flex items-center justify-center"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-sky-400 animate-pulse" />
+            <span className="font-extrabold text-white text-xs uppercase tracking-wider font-mono">Interview Prep</span>
+          </div>
+          <button 
+            type="button"
+            onClick={() => {
+              setRightPanelCollapsed(false);
+              setRightDrawerOpen(true);
+            }} 
+            className="p-2 -mr-2 hover:bg-slate-800 rounded-lg text-sky-400 bg-transparent border-none cursor-pointer flex items-center justify-center"
+          >
+            <BookOpen className="w-5 h-5" />
+          </button>
+        </div>
+
         {/* SUITE STAT BAR & BACK BUTTON */}
         <div className={`${thPanel} p-6 sm:p-7 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-md`}>
           <div className="flex flex-col gap-1">
@@ -1550,7 +1674,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
               type="text"
               value={aiEditPrompt}
               onChange={(e) => setAiEditPrompt(e.target.value)}
-              placeholder="e.g. Focus more on PostgreSQL indexing strategies and concurrency control..."
+              placeholder={`e.g. Focus more on ${activePlan.role === 'Generative AI Engineer' ? 'LLM fine-tuning parameters' : 'Pandas pipeline optimization'} and performance tuning...`}
               disabled={isEditingPlan}
               className={`flex-grow ${thInput} focus:outline-none p-3 rounded-xl text-xs font-semibold`}
             />
@@ -1571,73 +1695,142 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
           </form>
         </div>
 
+
+        {/* MOBILE DRAWER BACKDROPS */}
+        {leftDrawerOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 md:hidden"
+            onClick={() => setLeftDrawerOpen(false)}
+          />
+        )}
+        {rightDrawerOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 md:hidden"
+            onClick={() => setRightDrawerOpen(false)}
+          />
+        )}
+
         {/* INTEGRATED THREE PANELS COCKPIT COCOON */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start relative">
           
-          {/* COLUMN 1: LEFT HAND ROADMAP LIST OF ALL TOPICS (width 3/12) */}
-          <div className="lg:col-span-3 flex flex-col gap-4">
-            <div className={`${thPanel} p-4 rounded-xl flex flex-col gap-3 lg:max-h-[750px] lg:overflow-y-auto`}>
-              <div>
-                <span className="text-[9px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-0.5 rounded uppercase font-mono font-black">
-                  Syllabus Tracks
-                </span>
-                <h4 className={`text-xs font-black uppercase mt-1.5 ${thHeading} font-mono`}>
-                  📘 Study Sections ({totalTopics})
-                </h4>
-                <p className={`text-[10px] ${thTextMuted} font-semibold mt-0.5 leading-snug`}>
+          {/* COLUMN 1: LEFT HAND ROADMAP LIST OF ALL TOPICS */}
+          <div className={`
+            fixed inset-y-0 left-0 w-[290px] z-50 p-4 overflow-y-auto transition-transform duration-300 shadow-2xl
+            ${isDark ? 'bg-slate-900 border-r border-slate-800' : 'bg-white border-r border-slate-200'}
+            md:static md:w-auto md:z-0 md:bg-transparent md:border-none md:p-0 md:translate-x-0 md:shadow-none
+            ${leftDrawerOpen ? 'translate-x-0' : '-translate-x-full'}
+            ${leftPanelCollapsed ? 'md:col-span-1 md:max-w-16' : 'md:col-span-3'}
+            flex flex-col gap-4 w-full
+          `}>
+            {leftPanelCollapsed ? (
+              /* COLLAPSED LEFT PANEL */
+              <div 
+                onClick={() => setLeftPanelCollapsed(false)}
+                className={`hidden md:flex ${thPanel} p-3 rounded-2xl flex flex-col items-center gap-4 min-h-[500px] cursor-pointer hover:border-sky-500 hover:shadow-md transition-all group w-full`}
+                title="Expand Syllabus Chapters"
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLeftPanelCollapsed(false);
+                  }}
+                  className="p-1.5 hover:bg-slate-800 rounded text-sky-400 cursor-pointer transition-colors"
+                >
+                  <PanelLeftOpen className="w-4 h-4" />
+                </button>
+                <div className="flex flex-col items-center gap-1.5 mt-2">
+                  <span className="text-[9px] font-black font-mono uppercase tracking-widest text-slate-500 [writing-mode:vertical-lr] select-none group-hover:text-sky-400 transition-colors">
+                    SYLLABUS SECTIONS
+                  </span>
+                  <span className="text-[10px] font-black text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full mt-2 font-mono">
+                    {totalTopics}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              /* EXPANDED LEFT PANEL */
+              <div className={`${thPanel} p-4 rounded-xl flex flex-col gap-3 lg:max-h-[750px] lg:overflow-y-auto w-full`}>
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-0.5 rounded uppercase font-mono font-black self-start">
+                      Syllabus Tracks
+                    </span>
+                    <h4 className={`text-xs font-black uppercase mt-1.5 ${thHeading} font-mono`}>
+                      📘 Study Sections ({totalTopics})
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLeftPanelCollapsed(true);
+                      setLeftDrawerOpen(false);
+                    }}
+                    className="p-1.5 hover:bg-slate-850 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    title="Minimize Syllabus Panel"
+                  >
+                    <PanelLeftClose className="w-4 h-4 hidden md:block" />
+                    <ChevronDown className="w-4 h-4 md:hidden" />
+                  </button>
+                </div>
+                <p className={`text-[10px] ${thTextMuted} font-semibold leading-snug`}>
                   Choose any module to populate the study sandbox.
                 </p>
-              </div>
 
-              <div className="flex flex-col gap-2 pr-1">
-                {activePlan.topics.map((topic, i) => {
-                  const idx = i + 1;
-                  const isCurSelected = currentTopic?.id === topic.id;
-                  const isCompleted = topic.completed;
+                <div className="flex flex-col gap-2 pr-1 max-h-[500px] overflow-y-auto">
+                  {activePlan.topics.map((topic, i) => {
+                    const idx = i + 1;
+                    const isCurSelected = currentTopic?.id === topic.id;
+                    const isCompleted = topic.completed;
 
-                  return (
-                    <button
-                      key={topic.id || idx}
-                      type="button"
-                      onClick={() => selectTopicAndResetStates(topic)}
-                      className={`w-full p-4 rounded-xl border text-left transition-all relative cursor-pointer group flex flex-col justify-between min-h-[95px]
-                        ${isCurSelected 
-                          ? 'bg-sky-500/10 border-sky-400 text-sky-400 ring-1 ring-sky-400/20' 
-                          : `${isDark ? 'bg-slate-950/70 border-slate-850 hover:bg-slate-900/60 font-sans' : 'bg-slate-50 border-slate-205 hover:bg-stone-100 shadow-xs'}`
-                        }
-                      `}
-                    >
-                      {isCurSelected && (
-                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
-                      )}
-                      
-                      <div className="flex justify-between items-center w-full leading-none mb-1.5 pl-1.5">
-                        <span className="font-mono text-[9px] text-slate-505 group-hover:text-sky-455 font-black uppercase">
-                          #{String(idx).padStart(2, '0')}
-                        </span>
-                        {isCompleted ? (
-                          <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 p-0.5 px-1.5 rounded text-[8px] font-black uppercase leading-none font-mono">
-                            Mastered ✓
-                          </span>
-                        ) : (
-                          <span className={`p-0.5 px-1.5 rounded text-[8px] font-black uppercase leading-none border font-mono ${isDark ? 'bg-slate-900 text-slate-505 border-slate-850' : 'bg-slate-200 text-slate-550 border-slate-250'}`}>
-                            Open
-                          </span>
+                    return (
+                      <button
+                        key={topic.id || idx}
+                        type="button"
+                        onClick={() => selectTopicAndResetStates(topic)}
+                        className={`w-full p-4 rounded-xl border text-left transition-all relative cursor-pointer group flex flex-col justify-between min-h-[95px]
+                          ${isCurSelected 
+                            ? 'bg-sky-500/10 border-sky-400 text-sky-400 ring-1 ring-sky-400/20' 
+                            : `${isDark ? 'bg-slate-950/70 border-slate-850 hover:bg-slate-900/60 font-sans' : 'bg-slate-50 border-slate-205 hover:bg-stone-100 shadow-xs'}`
+                          }
+                        `}
+                      >
+                        {isCurSelected && (
+                          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
                         )}
-                      </div>
-                      
-                      <h5 className={`font-extrabold text-[12px] pl-1.5 leading-snug line-clamp-2 w-full ${isCurSelected ? 'text-sky-400' : thHeading}`}>
-                        {topic.name}
-                      </h5>
-                    </button>
-                  );
-                })}
+                        
+                        <div className="flex justify-between items-center w-full leading-none mb-1.5 pl-1.5">
+                          <span className="font-mono text-[9px] text-slate-505 group-hover:text-sky-455 font-black uppercase">
+                            #{String(idx).padStart(2, '0')}
+                          </span>
+                          {isCompleted ? (
+                            <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 p-0.5 px-1.5 rounded text-[8px] font-black uppercase leading-none font-mono">
+                              Mastered ✓
+                            </span>
+                          ) : (
+                            <span className={`p-0.5 px-1.5 rounded text-[8px] font-black uppercase leading-none border font-mono ${isDark ? 'bg-slate-900 text-slate-505 border-slate-850' : 'bg-slate-200 text-slate-550 border-slate-250'}`}>
+                              Open
+                            </span>
+                          )}
+                        </div>
+                        
+                        <h5 className={`font-extrabold text-[12px] pl-1.5 leading-snug line-clamp-2 w-full ${isCurSelected ? 'text-sky-400' : thHeading}`}>
+                          {topic.name}
+                        </h5>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* COLUMN 2: CENTER ACTIVE TOPIC DETAILED READING PREFACE (width 5/12) */}
-          <div className="lg:col-span-6 flex flex-col gap-4">
+          {/* COLUMN 2: CENTER ACTIVE TOPIC DETAILED READING PREFACE */}
+          <div className={`${
+            leftPanelCollapsed && rightPanelCollapsed ? 'md:col-span-10' :
+            leftPanelCollapsed ? (companionWide ? 'md:col-span-6' : 'md:col-span-8') :
+            rightPanelCollapsed ? 'md:col-span-8' : (companionWide ? 'md:col-span-4' : 'md:col-span-6')
+          } flex flex-col gap-4 w-full transition-all duration-300`}>
             {currentTopic ? (
               <div className={`${thPanel} p-5 sm:p-6 rounded-xl flex flex-col gap-5 min-h-[580px]`}>
                 
@@ -1652,19 +1845,139 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                     </h3>
                   </div>
 
-                  <button
+                                  <button
                     type="button"
-                    onClick={() => handleToggleTopicCompleted(currentTopic.id)}
+                    onClick={() => handleToggleCardCompleted(currentTopic.id, activeCardIndex)}
                     className={`p-1.5 px-3 text-[10px] font-mono font-black rounded-lg border cursor-pointer transition-all flex items-center gap-1 shrink-0
-                      ${currentTopic.completed 
+                      ${(cardsList[activeCardIndex]?.completed) 
                         ? 'bg-emerald-500/15 border-emerald-555 text-emerald-400' 
-                        : `${isDark ? 'bg-slate-900 border-slate-805 text-slate-405 hover:text-white' : 'bg-white border-slate-350 text-slate-605 hover:text-slate-900 shadow-sm'}`
+                        : `${isDark ? 'bg-slate-900 border-slate-855 text-slate-405 hover:text-white' : 'bg-white border-slate-350 text-slate-605 hover:text-slate-900 shadow-sm'}`
                       }
                     `}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-505 shrink-0" />
-                    <span>{currentTopic.completed ? 'Mastered ✓' : 'Mark Lesson Mastered'}</span>
+                    <span>{(cardsList[activeCardIndex]?.completed) ? 'Concept Mastered ✓' : 'Mark Concept Mastered'}</span>
                   </button>
+                </div>
+
+                {/* AI PLAYBOOK EXPANSION AND REWRITER SHIELD */}
+                <div className={`${isDark ? 'bg-sky-950/20 border-sky-500/10' : 'bg-sky-50/50 border-sky-200'} border p-4 rounded-xl flex flex-col gap-3.5 relative overflow-hidden mt-2`}>
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/5 rounded-full blur-xl pointer-events-none" />
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-sky-400 animate-pulse" />
+                      <h4 className={`text-xs font-black uppercase tracking-wider ${thHeading} font-mono`}>
+                        {cardsList.length <= 2 ? "⚡ LIVE AI PLAYBOOK EXPANSION (10-15 CARDS)" : "⚙️ CUSTOMIZE & APPEND PLAYBOOK CARDS"}
+                      </h4>
+                    </div>
+                    {cardsList.length <= 2 && (
+                      <span className="bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase px-2 py-0.5 rounded border border-amber-500/20 font-mono">
+                        Overview Mode
+                      </span>
+                    )}
+                  </div>
+
+                  <p className={`text-[10px] ${thTextMuted} leading-relaxed font-semibold`}>
+                    {cardsList.length <= 2 
+                      ? "This track currently holds an introductory summary. Expand it instantly to get 10-15 deep, textbook-quality cards custom-tailored for your placement role with advanced technical principles, realistic scenarios, and optimization patterns!"
+                      : "Add more textbook concepts, behaviorals, or custom architectures. Provide focus instructions to re-generate or extend the cards in this module."
+                    }
+                  </p>
+
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={expandInstructions}
+                        onChange={(e) => setExpandInstructions(e.target.value)}
+                        placeholder={`e.g. Focus on STAR answers, ${activePlan.role === 'Generative AI Engineer' ? 'LLM fine-tuning' : 'Pandas pipelines'}, and production deployment tips...`}
+                        className={`flex-grow ${thInput} focus:outline-none p-2 rounded-lg text-xs font-semibold`}
+                      />
+                      <button
+                        type="button"
+                        disabled={isExpandingTopic}
+                        onClick={async () => {
+                          if (!activePlan || !currentTopic) return;
+                          setIsExpandingTopic(true);
+                          try {
+                            const res = await fetch('/api/interview/expand-topic', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'x-device-id': deviceId,
+                                'x-gemini-model': getActiveGeminiModel()
+                              },
+                              body: JSON.stringify({
+                                plan_id: activePlan.id,
+                                topic_id: currentTopic.id,
+                                custom_instructions: expandInstructions
+                              })
+                            });
+                            if (res.ok) {
+                              const updatedPlan = await res.json();
+                              setPlans(prev => prev.map(p => p.id === updatedPlan.id ? updatedPlan : p));
+                              setActivePlan(updatedPlan);
+                              
+                              // Find the updated topic from the saved plan and set it as active topic
+                              const updatedTopic = updatedPlan.topics.find((t: any) => t.id === currentTopic.id);
+                              if (updatedTopic) {
+                                setSelectedTopic(updatedTopic);
+                              }
+                              setActiveCardIndex(0);
+                              setExpandInstructions('');
+                              alert(`Playbook expanded! Successfully compiled ${updatedTopic.cards.length} comprehensive technical study cards for this section.`);
+                            } else {
+                              alert("AI failed to expand the playbook. Please try again.");
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert("Network error communicating with the AI module expander.");
+                          } finally {
+                            setIsExpandingTopic(false);
+                          }
+                        }}
+                        className="bg-sky-505 hover:bg-sky-455 disabled:bg-slate-855 text-slate-950 px-3.5 rounded-lg border-none cursor-pointer font-black text-xs transition-colors shrink-0 font-mono flex items-center justify-center gap-1"
+                      >
+                        {isExpandingTopic ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin text-slate-955" />
+                            COMPILING PLAYBOOK...
+                          </>
+                        ) : (
+                          cardsList.length <= 2 ? "⚡ Expand Playbook" : "🔄 Re-generate Playbook"
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {/* MANUAL ADD CARD ACTION */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!activePlan || !currentTopic) return;
+                          const title = prompt("Enter a title for your custom concept card:");
+                          if (!title || !title.trim()) return;
+                          const content = prompt("Enter the explanation content (use Markdown if preferred):");
+                          if (!content || !content.trim()) return;
+                          const code = prompt("Enter an optional code snippet or ASCII design block (leave empty if none):") || '';
+
+                          const newCard = { title, content, code };
+                          const updatedPlan = { ...activePlan };
+                          const topicToUpdate = updatedPlan.topics.find(t => t.id === currentTopic.id);
+                          if (topicToUpdate) {
+                            topicToUpdate.cards = [...topicToUpdate.cards, newCard];
+                            handleSavePlanToDb(updatedPlan);
+                            setSelectedTopic({ ...topicToUpdate });
+                            setActiveCardIndex(topicToUpdate.cards.length - 1);
+                          }
+                        }}
+                        className={`text-[10px] font-bold p-1 px-2 rounded-md border cursor-pointer transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white' : 'bg-white border-slate-250 text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        ➕ Add Custom Concept Card
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* HORIZONTAL BOX SELECTION OF ACTIVE CONCEPT CARDS */}
@@ -1688,7 +2001,11 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                             }
                           `}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-sky-450 animate-pulse' : 'bg-slate-500'}`} />
+                          {card.completed ? (
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                          ) : (
+                            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-sky-450 animate-pulse' : 'bg-slate-500'}`} />
+                          )}
                           <span>Card #{idx + 1}: {card.title}</span>
                         </button>
                       );
@@ -1698,13 +2015,13 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
 
                 {/* CURRENT DETAILED EXPLANATION PANEL */}
                 {currentCard && (
-                  <div className={`p-5 rounded-xl border ${isDark ? 'bg-slate-950/80 border-slate-850' : 'bg-slate-100/60 border-slate-205'} flex flex-col gap-3.5 flex-grow`}>
+                  <div className={`p-5 rounded-xl border ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} flex flex-col gap-3.5 flex-grow`}>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-mono text-slate-505 font-black uppercase">ACTIVE PLAYBOOK CONCEPT: CARD #{activeCardIndex + 1}</span>
+                      <span className={`text-[9px] font-mono font-black uppercase ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>ACTIVE PLAYBOOK CONCEPT: CARD #{activeCardIndex + 1}</span>
                       <h4 className={`text-sm sm:text-base font-black uppercase tracking-tight ${thHeading}`}>{currentCard.title}</h4>
                     </div>
 
-                    <div className="text-xs leading-relaxed font-semibold font-sans space-y-3.5 opacity-90 text-slate-655 dark:text-slate-300 markdown-body">
+                    <div className={`text-xs leading-relaxed font-semibold font-sans space-y-3.5 opacity-90 ${isDark ? 'text-slate-300' : 'text-slate-800'} markdown-body`}>
                       {/* Explicit markdown support inside card contents */}
                       <ReactMarkdown>{currentCard.content}</ReactMarkdown>
                     </div>
@@ -1712,7 +2029,11 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                     {/* ATTACHED ARCHITECTURAL CODE BOX */}
                     {currentCard.code && (
                       <div className="flex flex-col gap-1.5 mt-2">
-                        <div className="flex justify-between items-center bg-slate-955 p-2 px-4 rounded-t-xl text-[9px] font-black text-slate-500 border-b border-slate-900 leading-none font-mono">
+                        <div className={`flex justify-between items-center p-2 px-4 rounded-t-xl text-[9px] font-black border-b leading-none font-mono ${
+                          isDark 
+                            ? 'bg-slate-900 text-slate-400 border-slate-950' 
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}>
                           <span>🛠️ CODE SCHEMA / STAR REFERENCE SHIELD</span>
                           <button
                             type="button"
@@ -1720,12 +2041,18 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                               navigator.clipboard.writeText(currentCard.code || '');
                               alert('Copied pattern to clipboard!');
                             }}
-                            className="text-sky-400 hover:text-sky-355 bg-transparent border-none cursor-pointer text-[9px] font-mono leading-none tracking-wider uppercase pl-2"
+                            className={`bg-transparent border-none cursor-pointer text-[9px] font-mono leading-none tracking-wider uppercase pl-2 ${
+                              isDark ? 'text-sky-400 hover:text-sky-300' : 'text-sky-600 hover:text-sky-700'
+                            }`}
                           >
                             [Copy]
                           </button>
                         </div>
-                        <pre className="bg-slate-955 text-sky-400 p-3.5 rounded-b-xl border border-slate-900 font-mono text-[9px] overflow-x-auto select-all max-h-[160px] leading-relaxed">
+                        <pre className={`p-3.5 rounded-b-xl border font-mono text-[9px] overflow-x-auto select-all max-h-[160px] leading-relaxed ${
+                          isDark 
+                            ? 'bg-slate-950 text-sky-400 border-slate-900' 
+                            : 'bg-slate-50 text-indigo-950 border-slate-200'
+                        }`}>
                           <code>{currentCard.code}</code>
                         </pre>
                       </div>
@@ -1734,19 +2061,32 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                 )}
 
                 {/* TOPIC GROUNDING LEARNING LINKS */}
-                {currentTopic.referenceLinks && currentTopic.referenceLinks.length > 0 && (
-                  <div className={`border-t ${isDark ? 'border-slate-800' : 'border-slate-205'} pt-3.5 mt-auto`}>
+                {currentCard && (
+                  <div className={`border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} pt-3.5 mt-auto`}>
                     <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 block mb-2 font-mono">
-                      Query Grounding &amp; Learning Reference Cards
+                      Query Grounding &amp; Learning Reference Cards (Active Card)
                     </span>
                     <div className="flex flex-wrap gap-2">
-                      {currentTopic.referenceLinks.map((link, lIdx) => (
+                      {(currentCard.referenceLinks && currentCard.referenceLinks.length > 0
+                        ? currentCard.referenceLinks
+                        : [
+                            {
+                              label: `Docs: ${currentCard.title}`,
+                              url: `https://www.google.com/search?q=${encodeURIComponent((currentTopic?.name || '') + " " + currentCard.title + " technical documentation guide")}`
+                            },
+                            {
+                              label: `Search: ${currentCard.title} Optimization`,
+                              url: `https://www.google.com/search?q=${encodeURIComponent(currentCard.title + " high performance optimization patterns")}`
+                            }
+                          ]
+                      ).map((link, lIdx) => (
                         <a 
                           key={lIdx}
-                          href={link.url}
+                          href={resolveLinkUrl(link.url, currentTopic?.name || '', currentCard?.title)}
                           target="_blank"
                           rel="noreferrer"
-                          className={`p-1.5 px-2.5 rounded-lg font-bold text-sky-400 flex items-center gap-1.5 transition-all text-[11px] border ${isDark ? 'bg-slate-955 hover:bg-slate-900 border-slate-800' : 'bg-slate-100/80 hover:bg-slate-205 border-slate-250 shadow-sm'}`}
+                          id={`bento-ref-link-${lIdx}`}
+                          className={`p-1.5 px-2.5 rounded-lg font-bold text-sky-400 flex items-center gap-1.5 transition-all text-[11px] border ${isDark ? 'bg-slate-950 hover:bg-slate-900 border-slate-800' : 'bg-slate-50 hover:bg-slate-100 border-slate-200 shadow-sm'}`}
                         >
                           <BookOpen className="w-3.5 h-3.5 shrink-0 text-sky-400" />
                           <span>{link.label}</span>
@@ -1764,54 +2104,121 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
             )}
           </div>
 
-          {/* COLUMN 3: RIGHT INTERACTION COACH TAB LAB (width 4/12) */}
-          <div className="lg:col-span-3 flex flex-col gap-4">
-            {currentTopic ? (
-              <div className="flex flex-col gap-4">
-                {/* INTERACTIVE WORKSPACE NAV TABS SELECTOR */}
-                <div className={`p-1 rounded-xl border flex ${thPanel} w-full shadow-sm`}>
-                  <button
-                    type="button"
-                    onClick={() => setTopicTab('chat')}
-                    className={`flex-1 py-1.5 text-[9px] font-extrabold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 font-mono
-                      ${topicTab === 'chat' 
-                        ? 'bg-sky-550 text-slate-950 font-black shadow-md' 
-                        : `${isDark ? 'text-slate-450 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
-                      }
-                    `}
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 text-center shrink-0" />
-                    <span>Chat Coach</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTopicTab('quiz')}
-                    className={`flex-1 py-1.5 text-[9px] font-extrabold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 font-mono
-                      ${topicTab === 'quiz' 
-                        ? 'bg-sky-550 text-slate-955 font-black shadow-md' 
-                        : `${isDark ? 'text-slate-450 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
-                      }
-                    `}
-                  >
-                    <Trophy className="w-3.5 h-3.5 text-center shrink-0" />
-                    <span>Spot Quiz</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTopicTab('notes')}
-                    className={`flex-1 py-1.5 text-[9px] font-extrabold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 font-mono
-                      ${topicTab === 'notes' 
-                        ? 'bg-sky-550 text-slate-955 font-black shadow-md' 
-                        : `${isDark ? 'text-slate-455 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
-                      }
-                    `}
-                  >
-                    <StickyNote className="w-3.5 h-3.5 text-center shrink-0" />
-                    <span>Notes</span>
-                  </button>
+          {/* COLUMN 3: RIGHT INTERACTION COACH TAB LAB */}
+          <div className={`
+            fixed inset-y-0 right-0 w-[310px] z-50 p-4 overflow-y-auto transition-transform duration-300 shadow-2xl
+            ${isDark ? 'bg-slate-900 border-l border-slate-800' : 'bg-white border-l border-slate-200'}
+            md:static md:w-auto md:z-0 md:bg-transparent md:border-none md:p-0 md:translate-x-0 md:shadow-none
+            ${rightDrawerOpen ? 'translate-x-0' : 'translate-x-full'}
+            ${rightPanelCollapsed ? 'md:col-span-1 md:max-w-16' : (companionWide ? 'md:col-span-5' : 'md:col-span-3')}
+            flex flex-col gap-4 w-full
+          `}>
+            {rightPanelCollapsed ? (
+              /* COLLAPSED RIGHT PANEL */
+              <div 
+                onClick={() => setRightPanelCollapsed(false)}
+                className={`hidden md:flex ${thPanel} p-3 rounded-2xl flex flex-col items-center gap-4 min-h-[500px] cursor-pointer hover:border-sky-500 hover:shadow-md transition-all group w-full`}
+                title="Expand Companion Labs"
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRightPanelCollapsed(false);
+                  }}
+                  className="p-1.5 hover:bg-slate-800 rounded text-sky-400 cursor-pointer transition-colors"
+                >
+                  <PanelRightOpen className="w-4 h-4" />
+                </button>
+                <div className="flex flex-col items-center gap-1.5 mt-2">
+                  <span className="text-[9px] font-black font-mono uppercase tracking-widest text-slate-500 [writing-mode:vertical-lr] select-none group-hover:text-sky-400 transition-colors">
+                    COMPANION LABS
+                  </span>
+                  <span className="text-[10px] font-black text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full mt-2 font-mono uppercase">
+                    {topicTab}
+                  </span>
                 </div>
+              </div>
+            ) : (
+              /* EXPANDED RIGHT PANEL */
+              <div className="flex flex-col gap-4 w-full">
+                {currentTopic ? (
+                  <div className="flex flex-col gap-4 w-full">
+                    {/* Header with close/minimize button */}
+                    <div className={`p-4 rounded-xl ${thPanel} flex justify-between items-center w-full`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🧪</span>
+                        <span className={`text-xs font-black uppercase tracking-wide ${thHeading}`}>Companion Labs</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {/* WIDE/EXPAND TOGGLE BUTTON */}
+                        <button
+                          type="button"
+                          onClick={() => setCompanionWide(!companionWide)}
+                          className={`p-1.5 rounded text-slate-400 hover:text-white transition-colors cursor-pointer hidden md:block ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}
+                          title={companionWide ? "Standard Width" : "Expand Width (Large Screens)"}
+                        >
+                          {companionWide ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRightPanelCollapsed(true);
+                            setRightDrawerOpen(false);
+                          }}
+                          className={`p-1.5 rounded text-slate-400 hover:text-white transition-colors cursor-pointer ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}
+                          title="Minimize Companion Panel"
+                        >
+                          <PanelRightClose className="w-4 h-4 hidden md:block" />
+                          <ChevronDown className="w-4 h-4 md:hidden" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* INTERACTIVE WORKSPACE NAV TABS SELECTOR */}
+                    <div className={`p-1 rounded-xl border flex ${thPanel} w-full shadow-sm`}>
+                      <button
+                        type="button"
+                        onClick={() => setTopicTab('chat')}
+                        className={`flex-1 py-1.5 text-[9px] font-extrabold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 font-mono
+                          ${topicTab === 'chat' 
+                            ? 'bg-sky-550 text-slate-950 font-black shadow-md' 
+                            : `${isDark ? 'text-slate-450 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
+                          }
+                        `}
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 text-center shrink-0" />
+                        <span>Chat Coach</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setTopicTab('quiz')}
+                        className={`flex-1 py-1.5 text-[9px] font-extrabold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 font-mono
+                          ${topicTab === 'quiz' 
+                            ? 'bg-sky-550 text-slate-955 font-black shadow-md' 
+                            : `${isDark ? 'text-slate-450 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
+                          }
+                        `}
+                      >
+                        <Trophy className="w-3.5 h-3.5 text-center shrink-0" />
+                        <span>Spot Quiz</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setTopicTab('notes')}
+                        className={`flex-1 py-1.5 text-[9px] font-extrabold uppercase tracking-wide rounded-lg border-none cursor-pointer transition-all flex items-center justify-center gap-1 font-mono
+                          ${topicTab === 'notes' 
+                            ? 'bg-sky-550 text-slate-955 font-black shadow-md' 
+                            : `${isDark ? 'text-slate-455 hover:text-white' : 'text-slate-600 hover:text-black hover:bg-slate-100'}`
+                          }
+                        `}
+                      >
+                        <StickyNote className="w-3.5 h-3.5 text-center shrink-0" />
+                        <span>Notes</span>
+                      </button>
+                    </div>
 
                 {/* TAB 1: 💬 DYNAMIC TOPIC COACH AI MENTOR */}
                 {topicTab === 'chat' && (
@@ -1839,7 +2246,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                             className={`p-2.5 rounded-xl max-w-[90%] font-semibold leading-normal ${
                               chat.role === 'user' 
                                 ? 'bg-sky-500/10 text-sky-400 self-end border border-sky-400/25 animate-fade-in' 
-                                : `${isDark ? 'bg-slate-900 border-slate-805' : 'bg-white border-slate-202'} text-slate-505 self-start border animate-fade-in`
+                                : `${isDark ? 'bg-slate-900 border-slate-805 text-slate-200' : 'bg-white border-slate-202 text-slate-800'} self-start border animate-fade-in`
                             }`}
                           >
                             <span className="text-[8px] block opacity-50 font-black mb-0.5 font-mono">
@@ -1951,7 +2358,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                               {Object.entries(quizQuestions[currentQuizIndex].options || {}).map(([key, value]) => {
                                 const isSelected = selectedQuizAnswer === key;
                                 const isCorrectAnswer = quizQuestions[currentQuizIndex].correct_answer === key;
-                                let optionStyle = isDark ? 'bg-slate-900 border-slate-805 hover:border-slate-755 text-slate-305' : 'bg-white border-slate-250 hover:border-slate-350 text-slate-700';
+                                let optionStyle = isDark ? 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300' : 'bg-white border-slate-250 hover:border-slate-350 text-slate-700';
 
                                 if (isQuizAnswerSubmitted) {
                                   if (isCorrectAnswer) {
@@ -1962,7 +2369,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                                     optionStyle = 'opacity-40 border-slate-205 text-slate-600 dark:text-slate-550 pointer-events-none';
                                   }
                                 } else if (isSelected) {
-                                  optionStyle = 'bg-sky-500/5 border-sky-400 text-sky-505';
+                                  optionStyle = 'bg-sky-500/5 border-sky-400 text-sky-600 dark:text-sky-400';
                                 }
 
                                 return (
@@ -2023,9 +2430,9 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                             </div>
 
                             {isQuizAnswerSubmitted && (
-                              <div className="p-3 border border-slate-850 rounded-xl mt-1 text-[10px] leading-relaxed bg-slate-955">
+                              <div className={`p-3 border rounded-xl mt-1 text-[10px] leading-relaxed ${isDark ? 'border-slate-800 bg-slate-950 text-slate-200' : 'border-slate-200 bg-slate-50 text-slate-800 shadow-inner'}`}>
                                 <span className="text-[8px] font-black uppercase tracking-widest text-sky-500 block mb-0.5 font-mono">AI Insights &amp; Explanations</span>
-                                <div className="opacity-85 font-sans font-medium text-slate-350 markdown-body">
+                                <div className="opacity-90 font-sans font-medium markdown-body">
                                   <ReactMarkdown>{quizQuestions[currentQuizIndex].explanation}</ReactMarkdown>
                                 </div>
                               </div>
@@ -2076,8 +2483,10 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
               </div>
             )}
           </div>
+        )}
+      </div>
 
-        </div>
+    </div>
 
         {/* HISTORIC PERFORMANCE LOGS AT THE FOOTER OF COCKPIT */}
         {scoreHistory.length > 0 && (
@@ -2103,10 +2512,6 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
             </div>
           </div>
         )}
-
-      </div>
-    );
-  };       )}
 
       </div>
     );
@@ -2140,89 +2545,165 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-black uppercase text-slate-500 font-mono">Topic Status:</span>
+            <span className="text-[10px] font-black uppercase text-slate-500 font-mono">Concept Status:</span>
             <button
               type="button"
-              onClick={() => handleToggleTopicCompleted(selectedTopic.id)}
+              onClick={() => handleToggleCardCompleted(selectedTopic.id, activeCardIndex)}
               className={`p-1.5 px-3.5 text-xs font-black rounded-lg border cursor-pointer transition-all flex items-center gap-1.5
-                ${selectedTopic.completed 
+                ${(cardsList[activeCardIndex]?.completed) 
                   ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' 
                   : `${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-350 text-slate-600 hover:text-slate-900 shadow-sm'}`
                 }
               `}
             >
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>{selectedTopic.completed ? 'Mastered Topic ✓' : 'Mark Topic Mastered'}</span>
+              <span>{(cardsList[activeCardIndex]?.completed) ? 'Concept Mastered ✓' : 'Mark Concept Mastered'}</span>
             </button>
           </div>
         </div>
 
         {/* THREE WORKSPACE PANELS COLUMNS */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
           
           {/* PANEL 1: LEFT COLUMN CONCEPT NAVIGATOR */}
-          <div className="lg:col-span-3 flex flex-col gap-4">
-            <div className={`${thPanel} p-4 rounded-2xl flex flex-col gap-3 min-h-[400px]`}>
-              <div>
-                <span className="text-[9px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-0.5 rounded uppercase font-black font-mono">
-                  Lesson syllabus
-                </span>
-                <h4 className={`text-xs font-black uppercase mt-1.5 ${thHeading}`}>
-                  📚 Syllabus Concept Map
-                </h4>
-                <p className={`text-[10px] ${thTextMuted} leading-tight font-semibold mt-0.5`}>
+          <div className={`${leftPanelCollapsed ? 'md:col-span-1 w-full md:max-w-16' : 'md:col-span-3 w-full'} flex flex-col gap-4 transition-all duration-300`}>
+            {leftPanelCollapsed ? (
+              /* COLLAPSED LEFT PANEL */
+              <>
+                {/* Desktop vertical tab */}
+                <div 
+                  onClick={() => setLeftPanelCollapsed(false)}
+                  className={`hidden md:flex ${thPanel} p-3 rounded-2xl flex flex-col items-center gap-4 min-h-[400px] cursor-pointer hover:border-sky-500 hover:shadow-md transition-all group w-full`}
+                  title="Expand Syllabus Concept Map"
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLeftPanelCollapsed(false);
+                    }}
+                    className="p-1.5 hover:bg-slate-800 rounded text-sky-450 cursor-pointer transition-colors"
+                  >
+                    <PanelLeftOpen className="w-4 h-4" />
+                  </button>
+                  <div className="flex flex-col items-center gap-1.5 mt-2">
+                    <span className="text-[9px] font-black font-mono uppercase tracking-widest text-slate-500 [writing-mode:vertical-lr] select-none group-hover:text-sky-400 transition-colors">
+                      SYLLABUS MAP
+                    </span>
+                    <span className="text-[10px] font-black text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full mt-2">
+                      {cardsList.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mobile compact header bar */}
+                <div 
+                  onClick={() => setLeftPanelCollapsed(false)}
+                  className={`flex md:hidden ${thPanel} p-3.5 px-4 rounded-2xl items-center justify-between cursor-pointer hover:border-sky-500 transition-all w-full`}
+                  title="Expand Syllabus Concept Map"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📚</span>
+                    <div className="flex flex-col text-left">
+                      <span className={`text-xs font-black uppercase ${thHeading}`}>Syllabus Concept Map</span>
+                      <span className={`text-[10px] ${thTextMuted} font-semibold`}>
+                        {activeCardIndex + 1} of {cardsList.length} concepts
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLeftPanelCollapsed(false);
+                    }}
+                    className="p-1.5 hover:bg-slate-800 rounded text-sky-400 cursor-pointer flex items-center gap-1"
+                  >
+                    <span className="text-[10px] font-black uppercase font-mono tracking-wider">Expand</span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* EXPANDED LEFT PANEL */
+              <div className={`${thPanel} p-4 rounded-2xl flex flex-col gap-3 min-h-[400px]`}>
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-0.5 rounded uppercase font-black font-mono self-start">
+                      Lesson syllabus
+                    </span>
+                    <h4 className={`text-xs font-black uppercase mt-1.5 ${thHeading}`}>
+                      📚 Syllabus Concept Map
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLeftPanelCollapsed(true)}
+                    className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    title="Minimize Syllabus Panel"
+                  >
+                    <PanelLeftClose className="w-4 h-4 hidden md:block" />
+                    <ChevronDown className="w-4 h-4 md:hidden" />
+                  </button>
+                </div>
+                <p className={`text-[10px] ${thTextMuted} leading-tight font-semibold`}>
                   Choose a technical concept card below to study its fine details, code patterns, and common traps.
                 </p>
-              </div>
 
-              {/* ITERATIVE CARDS MAP */}
-              <div className="flex flex-col gap-2 overflow-y-auto max-h-[380px] pr-1">
-                {cardsList.length === 0 ? (
-                  <p className="text-[11px] text-slate-550 italic font-semibold text-center my-auto">Syllabus details compiling...</p>
-                ) : (
-                  cardsList.map((card, idx) => {
-                    const isActive = activeCardIndex === idx;
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setActiveCardIndex(idx)}
-                        className={`w-full p-3 rounded-xl border text-left transition-all relative cursor-pointer group flex flex-col gap-1
-                          ${isActive 
-                            ? 'bg-sky-500/10 border-sky-400 text-sky-450' 
-                            : `${isDark ? 'bg-slate-955 border-slate-850 hover:bg-slate-900' : 'bg-slate-50 border-slate-205 hover:bg-slate-100'}`
-                          }
-                        `}
-                      >
-                        {isActive && (
-                          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping" />
-                        )}
-                        <div className="flex justify-between items-center w-full leading-none pl-1">
-                          <span className="font-mono text-[9px] text-slate-500 group-hover:text-sky-400 font-bold uppercase">
-                            Concept #{idx + 1}
-                          </span>
-                        </div>
-                        <h5 className={`font-extrabold text-xs pl-1 leading-snug truncate w-full ${isActive ? 'text-sky-400' : thHeading}`}>
-                          {card.title}
-                        </h5>
-                        <p className={`text-[10px] pl-1 leading-normal line-clamp-1 opacity-70 ${thTextMuted}`}>
-                          {card.content}
-                        </p>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+                {/* ITERATIVE CARDS MAP */}
+                <div className="flex flex-col gap-2 overflow-y-auto max-h-[380px] pr-1">
+                  {cardsList.length === 0 ? (
+                    <p className="text-[11px] text-slate-550 italic font-semibold text-center my-auto">Syllabus details compiling...</p>
+                  ) : (
+                    cardsList.map((card, idx) => {
+                      const isActive = activeCardIndex === idx;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setActiveCardIndex(idx)}
+                          className={`w-full p-3 rounded-xl border text-left transition-all relative cursor-pointer group flex flex-col gap-1
+                            ${isActive 
+                              ? 'bg-sky-500/10 border-sky-400 text-sky-450' 
+                              : `${isDark ? 'bg-slate-955 border-slate-850 hover:bg-slate-900' : 'bg-slate-50 border-slate-205 hover:bg-slate-100'}`
+                            }
+                          `}
+                        >
+                          {isActive && (
+                            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping" />
+                          )}
+                          <div className="flex justify-between items-center w-full leading-none pl-1">
+                            <span className="font-mono text-[9px] text-slate-500 group-hover:text-sky-400 font-bold uppercase flex items-center gap-1.5">
+                              Concept #{idx + 1}
+                              {card.completed && (
+                                <span className="text-emerald-500 text-[9px] font-black uppercase font-mono bg-emerald-500/10 px-1 py-0.5 rounded flex items-center gap-0.5">
+                                  ✓ Mastered
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <h5 className={`font-extrabold text-xs pl-1 leading-snug truncate w-full ${isActive ? 'text-sky-400' : thHeading}`}>
+                            {card.title}
+                          </h5>
+                          <p className={`text-[10px] pl-1 leading-normal line-clamp-1 opacity-70 ${thTextMuted}`}>
+                            {card.content}
+                          </p>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
 
-              {/* CARD DETECTIVE STATE RATIO */}
-              <div className={`p-2.5 rounded-xl text-center text-[10px] font-black uppercase ${isDark ? 'bg-slate-950/60' : 'bg-slate-100'} border border-slate-800/40 mt-auto`}>
-                Active view: {activeCardIndex + 1} of {cardsList.length} concepts
+                {/* CARD DETECTIVE STATE RATIO */}
+                <div className={`p-2.5 rounded-xl text-center text-[10px] font-black uppercase ${isDark ? 'bg-slate-950/60' : 'bg-slate-100'} border border-slate-800/40 mt-auto`}>
+                  Active view: {activeCardIndex + 1} of {cardsList.length} concepts
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* PANEL 2 & 3: RIGHT WORKSPACE SANDBOX */}
-          <div className="lg:col-span-9 flex flex-col md:flex-row gap-6 items-start w-full">
+          <div className={`${leftPanelCollapsed ? 'md:col-span-11' : 'md:col-span-9'} flex flex-col md:flex-row gap-6 items-start w-full`}>
             
             {/* CENTER CONCEPT DETAILS PANEL */}
             <div className={`flex-grow w-full md:min-w-0 ${thPanel} p-6 sm:p-7 rounded-2xl shadow-xl flex flex-col gap-5 min-h-[500px]`}>
@@ -2243,38 +2724,61 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
               {/* COMPLEX ARCHITECTURE CODE TERMINAL PANEL */}
               {currentCard.code && (
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center bg-slate-950 p-2 px-4 rounded-t-xl text-[10px] font-black text-slate-500 border-b border-slate-900 leading-none">
+                  <div className={`flex justify-between items-center p-2 px-4 rounded-t-xl text-[10px] font-black border-b leading-none ${
+                    isDark 
+                      ? 'bg-slate-950 text-slate-500 border-slate-900' 
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                  }`}>
                     <span className="font-mono">🛠️ TECHNICAL ARCHITECTURAL SCHEMATIC</span>
                     <button
                       type="button"
                       onClick={() => {
                         navigator.clipboard.writeText(currentCard.code || '');
                       }}
-                      className="text-sky-400 hover:text-sky-350 bg-transparent border-none cursor-pointer text-[9px] font-mono leading-none tracking-wider uppercase"
+                      className={`bg-transparent border-none cursor-pointer text-[9px] font-mono leading-none tracking-wider uppercase ${
+                        isDark ? 'text-sky-400 hover:text-sky-350' : 'text-sky-600 hover:text-sky-700'
+                      }`}
                     >
                       [Copy Code]
                     </button>
                   </div>
-                  <pre className="bg-slate-955 text-sky-400 p-4 rounded-b-xl border border-slate-900 font-mono text-[10px] overflow-x-auto select-all max-h-[180px] leading-relaxed">
+                  <pre className={`p-4 rounded-b-xl border font-mono text-[10px] overflow-x-auto select-all max-h-[180px] leading-relaxed ${
+                    isDark 
+                      ? 'bg-slate-900 text-sky-400 border-slate-950' 
+                      : 'bg-slate-50 text-indigo-950 border-slate-200'
+                  }`}>
                     <code>{currentCard.code}</code>
                   </pre>
                 </div>
               )}
 
               {/* CURATED REFERENCE LINKS */}
-              {selectedTopic.referenceLinks && selectedTopic.referenceLinks.length > 0 && (
-                <div className={`border-t ${isDark ? 'border-slate-800' : 'border-slate-205'} pt-4 mt-auto`}>
+              {currentCard && (
+                <div className={`border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} pt-4 mt-auto`}>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2 font-mono">
-                    Grounding References &amp; Search Queries
+                    Grounding References &amp; Search Queries (Active Card)
                   </span>
                   <div className="flex flex-wrap gap-2">
-                    {selectedTopic.referenceLinks.map((link, lIdx) => (
+                    {(currentCard.referenceLinks && currentCard.referenceLinks.length > 0
+                      ? currentCard.referenceLinks
+                      : [
+                          {
+                            label: `Docs: ${currentCard.title}`,
+                            url: `https://www.google.com/search?q=${encodeURIComponent((selectedTopic?.name || '') + " " + currentCard.title + " technical documentation guide")}`
+                          },
+                          {
+                            label: `Search: ${currentCard.title} Optimization`,
+                            url: `https://www.google.com/search?q=${encodeURIComponent(currentCard.title + " high performance optimization patterns")}`
+                          }
+                        ]
+                    ).map((link, lIdx) => (
                       <a 
                         key={lIdx}
-                        href={link.url}
+                        href={resolveLinkUrl(link.url, selectedTopic?.name || '', currentCard?.title)}
                         target="_blank"
                         rel="noreferrer"
-                        className={`p-2 px-3 rounded-lg font-bold text-sky-400 flex items-center gap-1.5 transition-all text-xs border ${isDark ? 'bg-slate-955 hover:bg-slate-900 border border-slate-800' : 'bg-slate-100 hover:bg-slate-205 border-slate-250 shadow-sm'}`}
+                        id={`classroom-ref-link-${lIdx}`}
+                        className={`p-2 px-3 rounded-lg font-bold text-sky-400 flex items-center gap-1.5 transition-all text-xs border ${isDark ? 'bg-slate-900 hover:bg-slate-850 border border-slate-800' : 'bg-slate-50 hover:bg-slate-100 border-slate-200 shadow-sm'}`}
                       >
                         <BookOpen className="w-3.5 h-3.5 shrink-0 text-sky-400" />
                         <span>{link.label}</span>
@@ -2287,9 +2791,95 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
             </div>
 
             {/* RIGHT COMPANION TAB LAB WORKPLACE */}
-            <div className="w-full md:w-[350px] lg:w-[410px] shrink-0 flex flex-col gap-4 animate-fade-in">
-              
-              {/* TABS SELECTOR DOCK BAR */}
+            <div className={`${rightPanelCollapsed ? 'w-full md:w-14' : (companionWide ? 'w-full md:w-[480px] lg:w-[600px]' : 'w-full md:w-[330px] lg:w-[400px]')} shrink-0 flex flex-col gap-4 transition-all duration-300`}>
+              {rightPanelCollapsed ? (
+                /* COLLAPSED RIGHT PANEL */
+                <>
+                  {/* Desktop vertical tab */}
+                  <div 
+                    onClick={() => setRightPanelCollapsed(false)}
+                    className={`hidden md:flex ${thPanel} p-3 rounded-2xl flex-col items-center gap-4 min-h-[440px] cursor-pointer hover:border-sky-500 hover:shadow-md transition-all group w-full`}
+                    title="Expand Companion Labs"
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRightPanelCollapsed(false);
+                      }}
+                      className="p-1.5 hover:bg-slate-800 rounded text-sky-455 cursor-pointer transition-colors"
+                    >
+                      <PanelRightOpen className="w-4 h-4" />
+                    </button>
+                    <div className="flex flex-col items-center gap-1.5 mt-2">
+                      <span className="text-[9px] font-black font-mono uppercase tracking-widest text-slate-500 [writing-mode:vertical-rl] select-none group-hover:text-sky-400 transition-colors">
+                        COMPANION LABS
+                      </span>
+                      <span className="text-[10px] font-black text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full mt-2">
+                        {topicTab.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Mobile compact header bar */}
+                  <div 
+                    onClick={() => setRightPanelCollapsed(false)}
+                    className={`flex md:hidden ${thPanel} p-3.5 px-4 rounded-2xl items-center justify-between cursor-pointer hover:border-sky-500 transition-all w-full`}
+                    title="Expand Companion Labs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">💬</span>
+                      <div className="flex flex-col text-left">
+                        <span className={`text-xs font-black uppercase ${thHeading}`}>Companion Labs</span>
+                        <span className={`text-[10px] ${thTextMuted} font-semibold`}>
+                          AI Tutor, Spot Quiz, Study Notes
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRightPanelCollapsed(false);
+                      }}
+                      className="p-1.5 hover:bg-slate-800 rounded text-sky-400 cursor-pointer flex items-center gap-1"
+                    >
+                      <span className="text-[10px] font-black uppercase font-mono tracking-wider">Expand</span>
+                      <ChevronUp className="w-3.5 h-3.5 animate-bounce" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* EXPANDED RIGHT PANEL */
+                <>
+                  {/* Panel Header Toggles */}
+                  <div className="flex justify-between items-center w-full px-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-550 dark:text-slate-500 font-mono">
+                      Interactive Companion Labs
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {/* WIDE/EXPAND TOGGLE BUTTON */}
+                      <button
+                        type="button"
+                        onClick={() => setCompanionWide(!companionWide)}
+                        className={`p-1.5 rounded text-slate-400 hover:text-white transition-colors cursor-pointer hidden md:block ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}
+                        title={companionWide ? "Standard Width" : "Expand Width (Large Screens)"}
+                      >
+                        {companionWide ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRightPanelCollapsed(true)}
+                        className={`p-1.5 rounded text-slate-400 hover:text-white transition-colors cursor-pointer ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}
+                        title="Minimize Companion Panel"
+                      >
+                        <PanelRightClose className="w-4 h-4 hidden md:block" />
+                        <ChevronUp className="w-4 h-4 md:hidden" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* TABS SELECTOR DOCK BAR */}
               <div className={`p-1.5 rounded-xl border flex ${thPanel} w-full`}>
                 <button
                   type="button"
@@ -2360,7 +2950,7 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                           className={`p-2.5 rounded-xl max-w-[90%] font-semibold leading-normal ${
                             chat.role === 'user' 
                               ? 'bg-sky-500/10 text-sky-400 self-end border border-sky-400/25' 
-                              : `${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} text-slate-505 self-start border`
+                              : `${isDark ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} self-start border`
                           }`}
                         >
                           <span className="text-[8px] block opacity-50 font-black mb-0.5 font-mono">
@@ -2591,6 +3181,8 @@ export default function InterviewPrep({ onBackToHome }: InterviewPrepProps) {
                 </div>
               )}
 
+                </>
+              )}
             </div>
 
           </div>

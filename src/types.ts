@@ -34,6 +34,8 @@ export interface InterviewTopicCard {
   title: string;
   content: string;
   code?: string;
+  completed?: boolean;
+  referenceLinks?: InterviewReferenceLink[];
 }
 
 export interface InterviewReferenceLink {

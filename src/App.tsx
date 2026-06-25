@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PracticeSession from './components/PracticeSession';
 import InterviewPrep from './components/InterviewPrep';
 import { ExamPlan } from './types';
-import { BookOpen, Trash2, ArrowUpRight, FolderHeart, PlusCircle, Sparkles, WifiOff, Briefcase, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Trash2, ArrowUpRight, FolderHeart, PlusCircle, Sparkles, WifiOff, Briefcase, GraduationCap, ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react';
 import { 
   cachePlans, 
   getCachedPlans, 
@@ -124,6 +124,24 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [usingCache, setUsingCache] = useState(false);
+
+  // Global theme state persisted across rooms and modules
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const saved = localStorage.getItem('prepmaster_theme');
+    if (saved !== null) {
+      return saved === 'dark';
+    }
+    return true; // Default to sleek tech dark mode
+  });
+
+  useEffect(() => {
+    localStorage.setItem('prepmaster_theme', isDark ? 'dark' : 'light');
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
 
   // Device-based Session Workspace State
   const [deviceId, setDeviceIdState] = useState<string>('');
@@ -250,17 +268,31 @@ export default function App() {
     return (
       <InterviewPrep
         onBackToHome={() => setScreenMode('home')}
+        isDark={isDark}
+        setIsDark={setIsDark}
       />
     );
   }
 
   if (screenMode === 'home') {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans select-none items-center justify-center p-6 relative overflow-hidden">
+      <div className={`min-h-screen flex flex-col font-sans select-none items-center justify-center p-6 relative overflow-hidden transition-all duration-300 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
         {/* Soft atmospheric background lights */}
-        <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-sky-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className={`absolute top-0 left-1/4 w-[400px] h-[400px] rounded-full blur-[120px] pointer-events-none transition-opacity duration-500 ${isDark ? 'bg-sky-500/10' : 'bg-sky-500/5'}`}></div>
+        <div className={`absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full blur-[120px] pointer-events-none transition-opacity duration-500 ${isDark ? 'bg-indigo-500/10' : 'bg-indigo-500/5'}`}></div>
         
+        {/* TOP FLOATING TOGGLE ROW */}
+        <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsDark(!isDark)}
+            className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-center shadow-md ${isDark ? 'border-slate-850 bg-slate-900 text-amber-400 hover:bg-slate-800' : 'border-slate-200 bg-white text-indigo-600 hover:bg-slate-100'}`}
+            title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          >
+            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+        </div>
+
         <div className="max-w-4xl w-full flex flex-col items-center gap-10 z-10">
           {/* Logo element header space */}
           <div className="flex flex-col items-center text-center gap-4">
@@ -268,11 +300,11 @@ export default function App() {
               <Sparkles className="w-8 h-8 text-white animate-pulse" />
             </div>
             <div>
-              <h1 className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase flex items-center justify-center gap-1.5">
+              <h1 className={`text-3xl md:text-5xl font-black tracking-widest uppercase flex items-center justify-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 PrepMaster
-                <span className="text-xs px-2 py-1 rounded bg-sky-500/10 border border-sky-500/30 text-sky-400 font-mono tracking-widest uppercase">V2.0</span>
+                <span className={`text-xs px-2 py-1 rounded font-mono tracking-widest uppercase ${isDark ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' : 'bg-sky-100 border-sky-200 text-sky-700'}`}>V2.0</span>
               </h1>
-              <p className="text-xs md:text-sm text-slate-400 font-semibold max-w-md mx-auto mt-3 leading-relaxed">
+              <p className={`text-xs md:text-sm font-semibold max-w-md mx-auto mt-3 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Adaptive preparation environments tailored for enterprise certification exams and professional placements.
               </p>
             </div>
@@ -286,25 +318,25 @@ export default function App() {
                 setScreenMode('exam');
                 fetchPlans(); // Refresh lists.
               }}
-              className="group p-8 rounded-3xl bg-slate-800/60 border-2 border-slate-700/80 hover:border-sky-400 text-left transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-sky-500/10 cursor-pointer flex flex-col justify-between min-h-[300px] relative overflow-hidden"
+              className={`group p-8 rounded-3xl text-left transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-2xl cursor-pointer flex flex-col justify-between min-h-[300px] relative overflow-hidden border-2 ${isDark ? 'bg-slate-900/65 border-slate-850 hover:border-sky-400 hover:shadow-sky-500/5' : 'bg-white border-slate-200 hover:border-sky-400 hover:shadow-sky-500/10'}`}
             >
-              <div className="absolute top-0 right-0 w-[120px] h-[120px] bg-sky-500/5 rounded-full blur-[40px] pointer-events-none transition-all group-hover:bg-sky-500/10"></div>
+              <div className={`absolute top-0 right-0 w-[120px] h-[120px] rounded-full blur-[40px] pointer-events-none transition-all ${isDark ? 'bg-sky-500/5 group-hover:bg-sky-500/10' : 'bg-sky-500/2 group-hover:bg-sky-500/5'}`}></div>
               
               <div className="flex flex-col gap-5">
-                <div className="p-4 bg-sky-500/10 text-sky-400 rounded-2xl w-fit group-hover:bg-sky-500 group-hover:text-white transition-all duration-300">
+                <div className={`p-4 rounded-2xl w-fit transition-all duration-300 ${isDark ? 'bg-sky-500/10 text-sky-400 group-hover:bg-sky-500 group-hover:text-white' : 'bg-sky-50 text-sky-600 group-hover:bg-sky-500 group-hover:text-white'}`}>
                   <GraduationCap className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="text-xl md:text-2xl font-black text-white group-hover:text-sky-400 transition-colors">
+                  <h3 className={`text-xl md:text-2xl font-black group-hover:text-sky-500 transition-colors ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     Exam Certification Suite
                   </h3>
-                  <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mt-2.5 font-medium">
+                  <p className={`text-xs sm:text-sm leading-relaxed mt-2.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     Upload practice banks or syllabus notes to formulate adaptive classrooms. Supports single/multi-select option routing, feedback logs, and review rooms.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-sky-400 group-hover:text-sky-300 pt-6">
+              <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-sky-500 group-hover:text-sky-400 pt-6">
                 <span>Configure & Begin Prep Rooms</span>
                 <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1.5 transition-transform" />
               </div>
@@ -315,34 +347,32 @@ export default function App() {
               onClick={() => {
                 setScreenMode('interview');
               }}
-              className="group p-8 rounded-3xl bg-slate-800/60 border-2 border-slate-700/80 hover:border-indigo-400 text-left transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-indigo-500/10 cursor-pointer flex flex-col justify-between min-h-[300px] relative overflow-hidden"
+              className={`group p-8 rounded-3xl text-left transition-all duration-300 transform hover:-translate-y-1.5 hover:shadow-2xl cursor-pointer flex flex-col justify-between min-h-[300px] relative overflow-hidden border-2 ${isDark ? 'bg-slate-900/65 border-slate-850 hover:border-indigo-400 hover:shadow-indigo-500/5' : 'bg-white border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/10'}`}
             >
-              <div className="absolute top-0 right-0 w-[120px] h-[120px] bg-indigo-500/5 rounded-full blur-[40px] pointer-events-none transition-all group-hover:bg-indigo-500/10"></div>
+              <div className={`absolute top-0 right-0 w-[120px] h-[120px] rounded-full blur-[40px] pointer-events-none transition-all ${isDark ? 'bg-indigo-500/5 group-hover:bg-indigo-500/10' : 'bg-indigo-500/2 group-hover:bg-indigo-500/5'}`}></div>
               
               <div className="flex flex-col gap-5">
-                <div className="p-4 bg-indigo-500/10 text-indigo-400 rounded-2xl w-fit group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300">
+                <div className={`p-4 rounded-2xl w-fit transition-all duration-300 ${isDark ? 'bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white' : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-500 group-hover:text-white'}`}>
                   <Briefcase className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="text-xl md:text-2xl font-black text-white group-hover:text-indigo-400 transition-colors">
+                  <h3 className={`text-xl md:text-2xl font-black group-hover:text-indigo-500 transition-colors ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     AI Interview Prep Suite
                   </h3>
-                  <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mt-2.5 font-medium">
-                    Consult with an AI executive prepper coach. Map dynamically configured 11-topic Bento roadmaps, manage companion notes, and evaluate with 10-concept flash quizzes.
+                  <p className={`text-xs sm:text-sm leading-relaxed mt-2.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Consult with an AI executive prepper coach. Map dynamically configured Bento roadmaps, manage companion notes, and evaluate with adaptive flash quizzes.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-indigo-400 group-hover:text-indigo-300 pt-6">
+              <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-indigo-500 group-hover:text-indigo-400 pt-6">
                 <span>Open Placement Chamber</span>
                 <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1.5 transition-transform" />
               </div>
             </button>
           </div>
 
-          <div className="text-slate-500 text-[10px] font-mono font-bold tracking-widest uppercase">
-            PrepMaster Engine Sync Status: Online
-          </div>
+          {/* No Sync Status */}
         </div>
       </div>
     );
@@ -355,19 +385,21 @@ export default function App() {
         plans={plans}
         onSwitch={(id) => setActivePlanId(id)}
         onBack={() => setActivePlanId(null)}
+        isDark={isDark}
+        setIsDark={setIsDark}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-850">
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       
       {/* RESPONSIVE HEADER BAR */}
-      <nav className="bg-slate-900 border-b border-slate-800 text-white py-4 px-4 sm:px-8 flex items-center justify-between shadow-lg">
+      <nav className={`border-b py-4 px-4 sm:px-8 flex items-center justify-between shadow-lg transition-colors ${isDark ? 'bg-slate-900 border-slate-850 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
         <div className="flex items-center gap-3">
           <AppLogo />
           <div>
-            <h1 className="text-lg sm:text-xl font-black text-white tracking-tight leading-none">
+            <h1 className={`text-lg sm:text-xl font-black tracking-tight leading-none ${isDark ? 'text-white' : 'text-slate-800'}`}>
               PrepMaster
             </h1>
             <span className="text-[9px] font-bold text-sky-400 tracking-widest uppercase">
@@ -376,14 +408,24 @@ export default function App() {
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => setShowDeviceSettings(!showDeviceSettings)}
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 hover:border-slate-600 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 transition-all cursor-pointer"
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-slate-200 hover:text-white' : 'bg-slate-100 hover:bg-slate-150 border-slate-200 text-slate-700'}`}
             title="Manage device workspace settings"
           >
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
-            <span>Workspace: {deviceName || 'Generic'} ({deviceId})</span>
+            <span className="hidden md:inline">Workspace: {deviceName || 'Generic'} ({deviceId})</span>
+            <span className="inline md:hidden">Workspace</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsDark(!isDark)}
+            className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-amber-400' : 'border-slate-250 bg-slate-100 hover:bg-slate-200 text-indigo-600'}`}
+            title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          >
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
           
           <div className="text-right hidden sm:block">
@@ -396,13 +438,13 @@ export default function App() {
 
       {/* DEVICE WORKSPACE MANAGER DRAWER / BAR */}
       {showDeviceSettings && (
-        <div className="bg-slate-850 text-slate-100 border-b border-slate-700/60 p-5 shadow-inner animate-fade-in">
+        <div className={`border-b p-5 shadow-inner animate-fade-in transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-100 border-slate-200 text-slate-800'}`}>
           <div className="max-w-5xl mx-auto w-full flex flex-col md:flex-row md:items-center justify-between gap-5">
             <div className="max-w-lg">
-              <h4 className="font-bold text-slate-200 text-xs sm:text-sm mb-1 flex items-center gap-1.5">
+              <h4 className={`font-bold text-xs sm:text-sm mb-1 flex items-center gap-1.5 ${isDark ? 'text-slate-250' : 'text-slate-850'}`}>
                 <span>🔒 Device Isolation & Cross-Device Sync</span>
               </h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
+              <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-650'}`}>
                 By default, PrepMaster isolates your study workspaces to your current active browser/device. 
                 Want to link your mobile phone, tablet, or another browser? Simply enter the same <strong>Workspace ID</strong> below to instantly pair and synchronize all patterns and progress!
               </p>
@@ -411,8 +453,8 @@ export default function App() {
             <div className="flex flex-wrap items-end gap-3 shrink-0">
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Workspace ID (Device Key)</span>
-                <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-2 rounded-xl">
-                  <span className="text-xs font-mono font-bold text-emerald-400">{deviceId}</span>
+                <div className={`flex items-center gap-2 border px-3 py-2 rounded-xl ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
+                  <span className="text-xs font-mono font-bold text-emerald-500">{deviceId}</span>
                   <button 
                     type="button"
                     onClick={() => {
@@ -443,7 +485,7 @@ export default function App() {
                     setDeviceNameState(val);
                     setDeviceName(val);
                   }}
-                  className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-100 outline-none focus:border-sky-500 w-36"
+                  className={`border rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-sky-500 w-36 ${isDark ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-805'}`}
                   placeholder="e.g. My Laptop"
                 />
               </div>
@@ -456,11 +498,11 @@ export default function App() {
       <div className="flex-grow max-w-5xl mx-auto w-full px-4 py-8 sm:py-12 flex flex-col gap-10">
         
         {/* SUITE SUB-HEADER & BACK TRIGGER */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-5">
+        <div className={`flex items-center justify-between border-b pb-5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setScreenMode('home')}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-350 active:bg-slate-300 text-slate-700 hover:text-slate-900 text-xs font-black rounded-xl border border-solid border-slate-300/80 transition-all cursor-pointer group"
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-black rounded-xl border border-solid transition-all cursor-pointer group ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800' : 'bg-slate-200 hover:bg-slate-300 text-slate-700 hover:text-slate-900 border-slate-300/80'}`}
             >
               <ChevronLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" />
               <span>Back to Selection Portal</span>
@@ -468,7 +510,7 @@ export default function App() {
           </div>
           <div className="text-right">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Current Suite</span>
-            <span className="text-xs font-extrabold text-sky-600 bg-sky-500/10 px-2.5 py-1 rounded-md uppercase tracking-wide">Exam Certifications</span>
+            <span className="text-xs font-extrabold text-sky-500 bg-sky-500/10 px-2.5 py-1 rounded-md uppercase tracking-wide">Exam Certifications</span>
           </div>
         </div>
 
@@ -476,22 +518,22 @@ export default function App() {
         <section className="flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <h2 className={`text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 <FolderHeart className="w-6 h-6 text-sky-500" /> Active study rooms
               </h2>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium">Continue your structured certification revision paths.</p>
+              <p className={`text-xs sm:text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Continue your structured certification revision paths.</p>
             </div>
-            <span className="bg-slate-200 text-slate-700 font-bold text-xs px-3 py-1 rounded-full uppercase leading-none mt-1">
+            <span className={`font-bold text-xs px-3 py-1 rounded-full uppercase leading-none mt-1 ${isDark ? 'bg-slate-900 text-slate-300' : 'bg-slate-200 text-slate-700'}`}>
               {plans.length} workspaces
             </span>
           </div>
 
           {usingCache && (
-            <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex items-start gap-3 text-amber-805">
+            <div className={`rounded-2xl p-4 flex items-start gap-3 border ${isDark ? 'bg-amber-950/20 border-amber-950/40 text-amber-300' : 'bg-amber-50 border-amber-200/80 text-amber-905'}`}>
               <WifiOff className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div className="text-xs sm:text-sm text-amber-900">
+              <div className="text-xs sm:text-sm">
                 <p className="font-bold">Offline Review Mode Enabled</p>
-                <p className="text-slate-600 font-medium mt-0.5 leading-relaxed">
+                <p className={`font-medium mt-0.5 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-655'}`}>
                   You are viewing your locally cached study rooms. You can fully review existing question patterns, practice with flashcards, and browse correct answer keys. Uploading new documents or utilizing real-time AI tutor interactions requires internet access.
                 </p>
               </div>
@@ -499,11 +541,11 @@ export default function App() {
           )}
 
           {plans.length === 0 ? (
-            <div className="bg-white p-10 sm:p-16 rounded-2xl border-2 border-dashed border-slate-200/80 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
+            <div className={`p-10 sm:p-16 rounded-2xl border-2 border-dashed text-center flex flex-col items-center justify-center gap-3 ${isDark ? 'bg-slate-900/20 border-slate-800 text-slate-400' : 'bg-white border-slate-200/80 text-slate-500'}`}>
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                 <BookOpen className="w-6 h-6" />
               </div>
-              <p className="font-semibold text-sm sm:text-base leading-relaxed max-w-md antialiased text-slate-600">
+              <p className={`font-semibold text-sm sm:text-base leading-relaxed max-w-md antialiased ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                 No active exam rooms. Upload a practice document below to spawn your personalized AI classroom space!
               </p>
             </div>
@@ -513,28 +555,28 @@ export default function App() {
                 <div
                   key={plan.id}
                   onClick={() => setActivePlanId(plan.id)}
-                  className="bg-white p-6 rounded-2xl border border-slate-200/60 cursor-pointer shadow-sm hover:shadow-xl hover:border-sky-300 transform hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between gap-5 group"
+                  className={`p-6 rounded-2xl border cursor-pointer shadow-sm hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between gap-5 group ${isDark ? 'bg-slate-900 border-slate-850 hover:border-sky-500' : 'bg-white border-slate-200/60 hover:border-sky-300'}`}
                 >
                   <div className="flex justify-between items-start gap-4">
                     <div className="min-w-0">
-                      <h3 className="font-black text-slate-800 text-sm sm:text-base leading-snug group-hover:text-sky-600 transition-colors line-clamp-2">
+                      <h3 className={`font-black text-sm sm:text-base leading-snug group-hover:text-sky-500 transition-colors line-clamp-2 ${isDark ? 'text-white' : 'text-slate-800'}`}>
                         {plan.title}
                       </h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">
+                      <p className={`text-[10px] font-bold uppercase tracking-wider mt-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         Uploaded {new Date(plan.created_at).toLocaleDateString()}
                       </p>
                     </div>
 
                     <button
                       onClick={(e) => handleDelete(e, plan.id)}
-                      className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl transition-all border-none cursor-pointer shrink-0"
+                      className="p-2 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 rounded-xl transition-all border-none cursor-pointer shrink-0"
                       title="Delete study workspace"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-auto">
+                  <div className={`flex items-center justify-between border-t pt-4 mt-auto ${isDark ? 'border-slate-850' : 'border-slate-100'}`}>
                     <span className="text-xs font-bold text-sky-500 flex items-center gap-1 group-hover:gap-2 transition-all">
                       Open Room <ArrowUpRight className="w-3.5 h-3.5" />
                     </span>
@@ -546,31 +588,31 @@ export default function App() {
         </section>
 
         {/* STUDY PLAN FILE INITIALIZER FORM */}
-        <section className="bg-white border border-slate-200/60 p-6 sm:p-10 rounded-3xl shadow-xl flex flex-col gap-6">
-          <div className="border-b border-slate-100 pb-5">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+        <section className={`border p-6 sm:p-10 rounded-3xl shadow-xl flex flex-col gap-6 transition-all ${isDark ? 'bg-slate-900 border-slate-800 text-slate-100 shadow-slate-950/40' : 'bg-white border-slate-200/60 text-slate-850 shadow-slate-200/50'}`}>
+          <div className={`border-b pb-5 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+            <h2 className={`text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
               <PlusCircle className="w-6 h-6 text-sky-500 animate-pulse" /> Initialize study room
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed mt-1">
+            <p className={`text-xs sm:text-sm font-medium leading-relaxed mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Add custom exam question papers in PDF or TXT. Our parser extracts syllabus patterns, configures interactive study lists, and builds automated flashcard decks.
             </p>
           </div>
 
           <form onSubmit={handleUpload} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-none">
+              <label className={`text-[11px] font-black uppercase tracking-widest leading-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Exam Workspace Title
               </label>
               <input
                 name="plan_title"
                 placeholder="e.g. AWS Solutions Architect (SAA-C03)"
                 required
-                className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white text-xs sm:text-sm font-semibold text-slate-800 outline-none focus:border-sky-400 focus:bg-white transition-all shadow-inner"
+                className={`w-full p-3.5 rounded-xl border outline-none font-semibold text-xs sm:text-sm transition-all shadow-inner ${isDark ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-600 focus:border-sky-500' : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-sky-400 focus:bg-white'}`}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-none">
+              <label className={`text-[11px] font-black uppercase tracking-widest leading-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Exam Question Source File
               </label>
               <input
@@ -578,7 +620,7 @@ export default function App() {
                 name="question_bank"
                 accept=".pdf,.txt,.text"
                 required
-                className="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[11px] file:font-extrabold file:uppercase file:tracking-wider file:bg-sky-100 file:text-sky-800 hover:file:bg-sky-200 cursor-pointer border border-slate-200 bg-slate-50 p-2 rounded-xl"
+                className={`w-full text-xs file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[11px] file:font-extrabold file:uppercase file:tracking-wider file:bg-sky-500/10 file:text-sky-400 hover:file:bg-sky-500/25 cursor-pointer border p-2 rounded-xl ${isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
               />
             </div>
 
@@ -592,13 +634,13 @@ export default function App() {
             <button
               type="submit"
               disabled={isUploading}
-              className={`sm:col-span-2 py-4 rounded-2xl text-white font-black text-sm sm:text-base border-none transition-all cursor-pointer shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2
-                ${isUploading ? 'bg-slate-300 text-slate-500 cursor-wait pointer-events-none shadow-none' : 'bg-slate-900 hover:bg-slate-800'}
+              className={`sm:col-span-2 py-4 rounded-2xl text-white font-black text-sm sm:text-base border-none transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2
+                ${isUploading ? 'bg-slate-800 text-slate-500 cursor-wait pointer-events-none shadow-none' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-950/20'}
               `}
             >
               {isUploading ? (
                 <span className="flex items-center gap-2">
-                  <span className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></span>
+                  <span className="w-5 h-5 border-2 border-slate-450 border-t-transparent rounded-full animate-spin"></span>
                   STRUCTURING REVISION PATTERNS...
                 </span>
               ) : (
@@ -612,7 +654,7 @@ export default function App() {
       </div>
 
       {/* FOOTER */}
-      <footer className="text-center py-6 border-t border-slate-200 text-[11px] font-bold text-slate-400 select-none bg-white">
+      <footer className={`text-center py-6 border-t text-[11px] font-bold select-none transition-colors ${isDark ? 'bg-slate-900 border-slate-850 text-slate-500' : 'bg-white border-slate-200 text-slate-400'}`}>
         © 2026 PrepMaster .ai — Premium Certification Study Rooms
       </footer>
     </div>

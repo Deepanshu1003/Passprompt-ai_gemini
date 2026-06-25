@@ -19,7 +19,8 @@ This document provides a highly detailed, comprehensive roadmap of the **PrepMas
 ## 2. Technical Stack Overview
 
 * **Frontend Framework**: React 19 (TypeScript, functional components with hooks, custom client-side cache and event-stream hook processing).
-* **Styling**: Tailwind CSS utilizing deep off-whites, modern slate dark colors (`bg-slate-900`/`bg-slate-850`), rich emerald feedback tags, and precise spacing grids.
+* **Styling**: Tailwind CSS utilizing deep off-whites, modern slate dark colors (`bg-slate-900`/`bg-slate-850`), rich emerald feedback tags, precise spacing grids, and a highly optimized dual-theme interface.
+* **Unified Theme Engine**: Single global dark/light state persisted in `localStorage` and shared synchronously across all dashboard interfaces, certification session rooms, bento matrices, and evaluation panels.
 * **Backend Server**: Express.js with custom SSE (Server-Sent Events) streaming pipelines. Production build compiles into a single CommonJS bundled file `dist/server.cjs` via `esbuild`.
 * **Database**: High-speed JSON flat-file storage engine (`src/db.json` with a structured `dbStore` helper class in `src/db.ts`), supporting local multi-tenant workspaces through a `device_id` filter.
 * **LLM Core**: Google GenAI TypeScript SDK (`@google/genai`) using `gemini-3.5-flash`.
@@ -184,3 +185,14 @@ To guarantee pristine visibility on any tablet screen standard viewport size, th
 
 * Sidebars transition to overlay drawers using the modern `lg` (1024px) breakpoint rather than the default `md` (768px). This grants iPad users operating in portrait or landscape orientations full, un-squeezed reading rows for complex exam scenarios.
 * Sliding panels use pure CSS slide-out drawers, accessible instantly through a hamburger menu on tablet screens.
+
+---
+
+## 10. Unified Theme Engine Specification
+
+To ensure a seamless visual transition during late-night or daylight study sessions, **PrepMaster** features a fully integrated dual-theme system:
+
+* **State Synchronization**: The dark mode state (`isDark` and `setIsDark`) is held globally at the root `App` component level and fed directly to child views (`InterviewPrep` and `PracticeSession`). This completely avoids flickering or visual mismatch states when changing workspaces.
+* **Persistent Settings**: The state automatically synchronizes with `localStorage` under the `interview_theme` namespace, loading light or dark preferences seamlessly on cold starts.
+* **Responsive Visual Cues**: Switches across views are rendered via micro-animated `Sun` and `Moon` vector icons from `lucide-react`, matching the container's background transitions dynamically.
+

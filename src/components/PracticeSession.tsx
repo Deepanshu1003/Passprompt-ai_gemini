@@ -17,7 +17,9 @@ import {
   HelpCircle,
   TrendingUp,
   ListFilter,
-  WifiOff
+  WifiOff,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { ExamPlan, Question, ProgressItem, ChatMessage } from '../types';
 import { AppLogo } from '../App';
@@ -33,27 +35,27 @@ import {
 
 const MarkdownComponents = {
   h1: ({ ...props }: any) => (
-    <h1 className="text-xl font-bold text-slate-800 mt-6 mb-3" {...props} />
+    <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-6 mb-3" {...props} />
   ),
   h2: ({ ...props }: any) => (
-    <h2 className="text-lg font-bold text-slate-800 mt-5 mb-2 border-b border-slate-200 pb-1.5" {...props} />
+    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-5 mb-2 border-b border-slate-200 dark:border-slate-800 pb-1.5" {...props} />
   ),
   h3: ({ ...props }: any) => (
-    <h3 className="text-base font-bold text-slate-800 mt-4 mb-2" {...props} />
+    <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mt-4 mb-2" {...props} />
   ),
   p: ({ ...props }: any) => (
-    <p className="text-sm md:text-base text-slate-600 leading-relaxed mb-3" {...props} />
+    <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 leading-relaxed mb-3" {...props} />
   ),
   strong: ({ ...props }: any) => (
     <strong className="text-sky-500 font-semibold" {...props} />
   ),
   ul: ({ ...props }: any) => (
-    <ul className="list-disc pl-5 text-slate-600 mb-3 space-y-1 text-sm md:text-base" {...props} />
+    <ul className="list-disc pl-5 text-slate-600 dark:text-slate-300 mb-3 space-y-1 text-sm md:text-base" {...props} />
   ),
   code: ({ children, className, ...props }: any) => {
     const isInline = !className || !className.startsWith('language-');
     return isInline ? (
-      <code className="bg-slate-100 px-1.5 py-0.5 rounded text-pink-600 text-xs md:text-sm font-mono" {...props}>
+      <code className="bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded text-pink-600 dark:text-pink-400 text-xs md:text-sm font-mono" {...props}>
         {children}
       </code>
     ) : (
@@ -161,9 +163,11 @@ interface PracticeSessionProps {
   plans: ExamPlan[];
   onSwitch: (id: string) => void;
   onBack: () => void;
+  isDark: boolean;
+  setIsDark: (dark: boolean) => void;
 }
 
-export default function PracticeSession({ planId, plans, onSwitch, onBack }: PracticeSessionProps) {
+export default function PracticeSession({ planId, plans, onSwitch, onBack, isDark, setIsDark }: PracticeSessionProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [activeModel, setActiveModel] = useState<string>(() => getActiveGeminiModel());
   const [progress, setProgress] = useState<ProgressItem[]>([]);
@@ -558,21 +562,39 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
   const currentStatus = progressByQuestion[currentQuestion.id] || 'gray';
   const activeMode = activeTab;
 
+  const thBg = isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900';
+  const thNavbar = isDark ? 'bg-slate-900 border-b border-slate-800 text-white' : 'bg-white border-b border-slate-200 text-slate-900 shadow-sm';
+  const thPanel = isDark ? 'bg-slate-900 border border-slate-850' : 'bg-white border border-slate-200/80 shadow-md';
+  const thCard = isDark ? 'bg-slate-950 border border-slate-850' : 'bg-slate-100 border border-slate-200';
+  const thHeading = isDark ? 'text-white' : 'text-slate-900';
+  const thTextMuted = isDark ? 'text-slate-400' : 'text-slate-500';
+  const thInnerBar = isDark ? 'bg-slate-950 border-slate-850 text-slate-300' : 'bg-slate-50 border-slate-100 text-slate-600';
+
   return (
-    <div className="flex h-screen w-screen font-sans bg-slate-100 overflow-hidden text-slate-900 select-none">
+    <div className={`flex h-screen w-screen font-sans overflow-hidden select-none transition-colors duration-300 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-905'}`}>
       
       {/* MOBILE HEADER BAR */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 text-white flex items-center justify-between px-4 z-40 shadow-md">
-        <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 hover:bg-slate-800 rounded-lg">
+      <div className={`lg:hidden fixed top-0 left-0 right-0 h-16 flex items-center justify-between px-4 z-40 shadow-md transition-colors ${isDark ? 'bg-slate-900 text-white border-b border-slate-850' : 'bg-white text-slate-800 border-b border-slate-200'}`}>
+        <button onClick={() => setSidebarOpen(true)} className={`p-2 -ml-2 rounded-lg ${isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
           <Menu className="w-6 h-6" />
         </button>
         <div className="flex items-center gap-1.5">
           <AppLogo />
-          <span className="font-extrabold text-white text-base tracking-tight">PrepMaster</span>
+          <span className={`font-extrabold text-base tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>PrepMaster</span>
         </div>
-        <button onClick={() => setDirectoryOpen(true)} className="p-2 -mr-2 hover:bg-slate-800 rounded-lg text-sky-400">
-          <Layers className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsDark(!isDark)}
+            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${isDark ? 'border-slate-700 bg-slate-800 text-amber-400' : 'border-slate-250 bg-slate-100 text-indigo-600'}`}
+            title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          >
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <button onClick={() => setDirectoryOpen(true)} className="p-2 -mr-2 rounded-lg text-sky-500 hover:scale-105 transition-all">
+            <Layers className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* DETAILED SIDEBAR DESKTOP VIEW */}
@@ -631,7 +653,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
             {activeModel === 'gemini-3.1-flash-lite' ? (
               <span className="text-emerald-400/90 font-bold">✓ Best for 200-300+ daily evaluations. Highly optimized.</span>
             ) : activeModel === 'gemini-3.1-pro-preview' ? (
-              <span className="text-amber-400/95 font-bold">★ Highest accuracy reasoning. Requires premium keys.</span>
+              <span className="text-amber-400/95 font-bold">★ Highest accuracy reasoning. Powered by Gemini Pro.</span>
             ) : (
               <span>⚡ Fast interactive responses and smart tutoring.</span>
             )}
@@ -703,34 +725,46 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
       </div>
 
       {/* MAIN CONTENT SCREEN AREA */}
-      <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto pt-16 lg:pt-0">
+      <div className={`flex-1 flex flex-col h-full overflow-y-auto pt-16 lg:pt-0 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
         
         {/* DESKTOP HEADER ACTION CONTROL ROW */}
-        <div className="hidden lg:flex h-14 border-b border-slate-200 bg-white items-center justify-between px-8">
-          <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
-            <span>Workspace: <strong className="text-slate-800">{currentQuestion.text ? `Quiz Pattern #${currentQuestion.question_number}` : ""}</strong></span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+        <div className={`hidden lg:flex h-14 border-b items-center justify-between px-8 transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+          <div className={`flex items-center gap-4 text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span>Workspace: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{currentQuestion.text ? `Quiz Pattern #${currentQuestion.question_number}` : ""}</strong></span>
+            <span className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`}></span>
             <span>Target: <strong className="text-sky-500 uppercase tracking-widest">{plans.find(p => p.id === planId)?.title || "AWS Exam"}</strong></span>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
-            <button 
-              onClick={() => setActiveTab('practice')} 
-              className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors ${activeTab === 'practice' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-1.5 p-1 rounded-lg ${isDark ? 'bg-slate-950/60' : 'bg-slate-100'}`}>
+              <button 
+                onClick={() => setActiveTab('practice')} 
+                className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors ${activeTab === 'practice' ? (isDark ? 'bg-slate-800 text-white shadow' : 'bg-white text-slate-800 shadow-sm') : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+              >
+                Quiz Active
+              </button>
+              <button 
+                onClick={() => setActiveTab('flashcard')} 
+                className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors ${activeTab === 'flashcard' ? (isDark ? 'bg-slate-800 text-white shadow' : 'bg-white text-slate-800 shadow-sm') : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+              >
+                Flashcards
+              </button>
+              <button 
+                onClick={() => setActiveTab('dashboard')} 
+                className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors ${activeTab === 'dashboard' ? (isDark ? 'bg-slate-800 text-white shadow' : 'bg-white text-slate-800 shadow-sm') : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+              >
+                Metrics Room
+              </button>
+            </div>
+
+            {/* THEME SWITCH TOGGLE BUTTON */}
+            <button
+              type="button"
+              onClick={() => setIsDark(!isDark)}
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-amber-400' : 'border-slate-250 bg-slate-100 hover:bg-slate-200 text-indigo-600'}`}
+              title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
             >
-              Quiz Active
-            </button>
-            <button 
-              onClick={() => setActiveTab('flashcard')} 
-              className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors ${activeTab === 'flashcard' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              Flashcards
-            </button>
-            <button 
-              onClick={() => setActiveTab('dashboard')} 
-              className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors ${activeTab === 'dashboard' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              Metrics Room
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
           </div>
         </div>
@@ -753,11 +787,11 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
           {/* TAB 1: PRACTICE MODE PANEL */}
           {activeMode === 'practice' && (
             <div className="flex flex-col gap-6 animate-fade-in">
-              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-5 md:p-8 flex flex-col gap-5">
+              <div className={`${thPanel} rounded-2xl p-5 md:p-8 flex flex-col gap-5`}>
                 
                 {/* ID & NAVIGATION */}
-                <div className="flex justify-between items-center bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
-                  <span className="bg-sky-100 text-sky-800 font-extrabold text-xs tracking-wider px-2.5 py-1 rounded-full uppercase">
+                <div className={`${thInnerBar} flex justify-between items-center px-4 py-2.5 rounded-xl border`}>
+                  <span className="bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-xs tracking-wider px-2.5 py-1 rounded-full uppercase">
                     Question {currentIndex + 1} of {total}
                   </span>
                   
@@ -765,14 +799,14 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                     <button
                       onClick={() => navigate(-1)}
                       disabled={currentIndex === 0}
-                      className="px-3.5 py-2 text-xs font-bold bg-white text-slate-700 hover:text-slate-900 border border-slate-200/80 rounded-lg disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50 transition-all flex items-center gap-1 cursor-pointer"
+                      className={`px-3.5 py-2 text-xs font-bold border rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center gap-1 cursor-pointer ${isDark ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-900' : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50'}`}
                     >
                       <ArrowLeft className="w-3.5 h-3.5" /> Previous
                     </button>
                     <button
                       onClick={() => navigate(1)}
                       disabled={currentIndex === total - 1}
-                      className="px-3.5 py-2 text-xs font-bold bg-white text-slate-700 hover:text-slate-900 border border-slate-200/80 rounded-lg disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50 transition-all flex items-center gap-1 cursor-pointer"
+                      className={`px-3.5 py-2 text-xs font-bold border rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center gap-1 cursor-pointer ${isDark ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-900' : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50'}`}
                     >
                       Next <ArrowRight className="w-3.5 h-3.5" />
                     </button>
@@ -780,7 +814,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                 </div>
 
                 {/* QUESTION WORDING TEXT */}
-                <p className="text-base md:text-lg text-slate-800 font-medium leading-relaxed mt-2 select-text">
+                <p className={`text-base md:text-lg font-medium leading-relaxed mt-2 select-text ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
                   {currentQuestion.text}
                 </p>
 
@@ -790,8 +824,8 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                     const isMulti = Object.keys(currentQuestion.options).length > 4;
                     const isSelected = selectedAnswer ? selectedAnswer.split(',').map(s => s.trim()).includes(key) : false;
                     const choiceColors = isSelected 
-                      ? 'border-sky-400 bg-sky-50 text-slate-900 ring-2 ring-sky-100' 
-                      : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700 hover:bg-slate-50';
+                      ? (isDark ? 'border-sky-500 bg-sky-950/40 text-sky-200 ring-2 ring-sky-950/60' : 'border-sky-400 bg-sky-50 text-slate-900 ring-2 ring-sky-100') 
+                      : (isDark ? 'border-slate-800 bg-slate-900 hover:border-slate-700 text-slate-205 hover:bg-slate-850' : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700 hover:bg-slate-50');
 
                     return (
                       <button
@@ -799,7 +833,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                         onClick={() => handleSelectAnswer(key)}
                         className={`w-full p-4 rounded-xl border-2 border-solid text-left transition-all duration-150 flex items-start gap-3 cursor-pointer min-h-[52px] ${choiceColors}`}
                       >
-                        <span className={`w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0 border border-solid ${isMulti ? 'rounded-md' : 'rounded-full'} ${isSelected ? 'bg-sky-500 border-sky-500 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
+                        <span className={`w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0 border border-solid ${isMulti ? 'rounded-md' : 'rounded-full'} ${isSelected ? 'bg-sky-500 border-sky-500 text-white' : (isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500')}`}>
                           {key}
                         </span>
                         <span className="text-sm md:text-base font-medium leading-normal pt-0.5 select-text flex-1">
@@ -820,7 +854,9 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                   onClick={handleCheckAnswer}
                   disabled={isStreaming || !selectedAnswer}
                   className={`w-full py-4 text-center rounded-xl font-extrabold text-sm md:text-base text-white border-none transition-all cursor-pointer shadow-lg mt-2
-                    ${isStreaming || !selectedAnswer ? 'bg-slate-300 text-slate-500 shadow-none pointer-events-none' : 'bg-slate-800 hover:bg-slate-900 shadow-slate-800/10'}
+                    ${isStreaming || !selectedAnswer 
+                      ? (isDark ? 'bg-slate-800 text-slate-600 shadow-none pointer-events-none' : 'bg-slate-300 text-slate-500 shadow-none pointer-events-none') 
+                      : (isDark ? 'bg-sky-600 hover:bg-sky-500 shadow-sky-900/30' : 'bg-slate-800 hover:bg-slate-900 shadow-slate-800/10')}
                   `}
                 >
                   {isStreaming ? (
@@ -836,8 +872,8 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
 
               {/* FLOATING TEXT AI EXPLANATIONS ROOM */}
               {explanation && (
-                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-6 md:p-8 flex flex-col gap-6 transition-all duration-300 animate-slide-up">
-                  <div className="flex items-center gap-2 text-sky-500 font-extrabold tracking-wider text-xs border-b border-slate-100 pb-4">
+                <div className={`${thPanel} rounded-2xl p-6 md:p-8 flex flex-col gap-6 transition-all duration-300 animate-slide-up`}>
+                  <div className="flex items-center gap-2 text-sky-500 font-extrabold tracking-wider text-xs border-b border-slate-100 dark:border-slate-800 pb-4">
                     <Sparkles className="w-5 h-5 animate-pulse text-sky-400" />
                     AI TUTOR CRITIQUE & GRADE
                   </div>
@@ -849,8 +885,8 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                   </div>
 
                   {/* ACTIVE TUTOR CHAT INPUT FOR CHAT BOT DIALOGUES */}
-                  <div className="border-t border-slate-100 pt-6">
-                    <h4 className="font-extrabold text-slate-700 text-xs tracking-wider uppercase mb-3 flex items-center gap-1.5">
+                  <div className="border-t border-slate-100 dark:border-slate-800 pt-6">
+                    <h4 className={`font-extrabold text-xs tracking-wider uppercase mb-3 flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       <MessageSquare className="w-4 h-4 text-sky-400" /> Continuous Classroom Discussion
                     </h4>
 
@@ -860,8 +896,8 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                           key={i}
                           className={`p-4 rounded-xl text-sm leading-relaxed border border-solid select-text ${
                             msg.role === 'user' 
-                              ? 'bg-slate-50 border-slate-200/80 text-slate-700 ml-4 md:ml-8' 
-                              : 'bg-sky-50/50 border-sky-100 text-slate-800 mr-4 md:mr-8'
+                              ? (isDark ? 'bg-slate-950 border-slate-850 text-slate-300 ml-4 md:ml-8' : 'bg-slate-50 border-slate-200/80 text-slate-700 ml-4 md:ml-8') 
+                              : (isDark ? 'bg-sky-950/20 border-sky-950/40 text-slate-200 mr-4 md:mr-8' : 'bg-sky-50/50 border-sky-100 text-slate-800 mr-4 md:mr-8')
                           }`}
                         >
                           <span className={`block text-[10px] tracking-widest font-black uppercase mb-1.5 ${msg.role === 'user' ? 'text-slate-400' : 'text-sky-500'}`}>
@@ -874,7 +910,7 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                       ))}
                     </div>
 
-                    <div className="flex gap-2 mt-4 bg-slate-100/80 p-2 rounded-xl border border-slate-200/60">
+                    <div className={`flex gap-2 mt-4 p-2 rounded-xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100/80 border-slate-200/60'}`}>
                       <textarea
                         ref={chatInputRef}
                         value={chatInput}
@@ -882,13 +918,13 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                         onKeyDown={handleChatKeyDown}
                         placeholder="Request direct topic advice or test-taking tips... (⌘ + Enter)"
                         rows={2}
-                        className="flex-1 px-3 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium focus:outline-none focus:border-sky-400 resize-none font-sans"
+                        className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium focus:outline-none focus:border-sky-450 resize-none font-sans ${isDark ? 'bg-slate-900 border-slate-800 text-white focus:border-sky-500' : 'bg-white border-slate-200 text-slate-800 focus:border-sky-400'}`}
                       />
                       <button
                         onClick={handleAskFollowUp}
                         disabled={isChatting || !chatInput.trim()}
                         className={`w-14 items-center justify-center rounded-lg border-none text-white font-bold text-xs tracking-wide cursor-pointer transition-colors shrink-0 flex
-                          ${isChatting || !chatInput.trim() ? 'bg-slate-300 pointer-events-none' : 'bg-sky-500 hover:bg-sky-600'}
+                          ${isChatting || !chatInput.trim() ? 'bg-slate-350 dark:bg-slate-800 text-slate-500' : 'bg-sky-500 hover:bg-sky-600'}
                         `}
                       >
                         {isChatting ? '...' : 'Ask'}
@@ -904,8 +940,8 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
           {activeMode === 'flashcard' && (
             <div className="flex flex-col gap-6 items-center animate-fade-in">
               <div className="text-center max-w-lg mb-2">
-                <h3 className="text-lg font-bold text-slate-800">Concept Active Recall Deck</h3>
-                <p className="text-xs text-slate-500 leading-normal mt-1">
+                <h3 className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>Concept Active Recall Deck</h3>
+                <p className={`text-xs leading-normal mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   Read the pattern description below. Formulate your reasoning, then click to flip the card and check the optimal answer and full critique.
                 </p>
               </div>
@@ -928,16 +964,16 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                   
                   {/* FRONT SIDE */}
                   <div 
-                    className="absolute inset-0 bg-white rounded-2xl border-2 border-solid border-slate-200/80 shadow-md p-6 md:p-8 flex flex-col justify-between"
+                    className={`absolute inset-0 rounded-2xl border-2 border-solid p-6 md:p-8 flex flex-col justify-between ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80 shadow-md'}`}
                     style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
                   >
                     <div className="flex justify-between items-center text-xs font-bold text-slate-400">
                       <span>FLASHCARD #{currentQuestion.question_number}</span>
-                      <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">Active Recall</span>
+                      <span className="bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">Active Recall</span>
                     </div>
 
                     <div className="my-auto py-4 overflow-y-auto max-h-[220px]">
-                      <p className="text-sm md:text-base font-semibold text-slate-700 leading-relaxed text-left select-text">
+                      <p className={`text-sm md:text-base font-semibold leading-relaxed text-left select-text ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
                         {currentQuestion.text}
                       </p>
                     </div>
@@ -1005,21 +1041,21 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
               </div>
 
               {/* CARD SELECTORS */}
-              <div className="flex gap-4 items-center mt-2.5 bg-white p-2.5 rounded-2xl border border-slate-200">
+              <div className={`flex gap-4 items-center mt-2.5 p-2.5 rounded-2xl border ${isDark ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}>
                 <button
                   onClick={() => navigate(-1)}
                   disabled={currentIndex === 0}
-                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl disabled:opacity-30 disabled:pointer-events-none transition-all border-none cursor-pointer"
+                  className={`p-2.5 rounded-xl disabled:opacity-30 disabled:pointer-events-none transition-all border-none cursor-pointer ${isDark ? 'bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-905'}`}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-widest px-4">
+                <span className="text-xs font-extrabold uppercase tracking-widest px-4">
                   Card {currentIndex + 1} of {total}
                 </span>
                 <button
                   onClick={() => navigate(1)}
                   disabled={currentIndex === total - 1}
-                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl disabled:opacity-30 disabled:pointer-events-none transition-all border-none cursor-pointer"
+                  className={`p-2.5 rounded-xl disabled:opacity-30 disabled:pointer-events-none transition-all border-none cursor-pointer ${isDark ? 'bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-905'}`}
                 >
                   <ArrowRight className="w-5 h-5" />
                 </button>
@@ -1029,17 +1065,17 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
 
           {/* TAB 3: WORKSPACE PROGRESS DASHBOARD */}
           {activeMode === 'dashboard' && (
-            <div className="flex flex-col gap-6 animate-fade-in text-slate-800">
+            <div className={`flex flex-col gap-6 animate-fade-in ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
               
               {/* PRIMARY VISUAL GAUGE GRID */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 
                 {/* SVG CIRCULAR ACCURACIES */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-md text-center flex flex-col items-center justify-center gap-3">
+                <div className={`${thPanel} p-6 rounded-2xl text-center flex flex-col items-center justify-center gap-3`}>
                   <span className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Tackle Accuracy</span>
                   <div className="relative w-28 h-28 flex items-center justify-center">
                     <svg className="w-full h-full transform -rotate-90">
-                      <circle cx="56" cy="56" r="44" stroke="#f1f5f9" strokeWidth="10" fill="transparent" />
+                      <circle cx="56" cy="56" r="44" stroke={isDark ? "#1e293b" : "#f1f5f9"} strokeWidth="10" fill="transparent" />
                       <circle 
                         cx="56" 
                         cy="56" 
@@ -1060,21 +1096,21 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                       </defs>
                     </svg>
                     <div className="absolute flex flex-col leading-none">
-                      <span className="text-2xl font-black text-slate-800">{accuracyPct}%</span>
+                      <span className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-800'}`}>{accuracyPct}%</span>
                     </div>
                   </div>
                   <p className="text-[10px] text-slate-500 font-medium">Of attempted question patterns</p>
                 </div>
 
                 {/* ATTEMPT RATIOS */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-md flex flex-col justify-between gap-4">
+                <div className={`${thPanel} p-6 rounded-2xl flex flex-col justify-between gap-4`}>
                   <div>
                     <span className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-2">Pacing Log</span>
-                    <div className="flex justify-between items-baseline border-b border-slate-100 pb-2.5">
+                    <div className="flex justify-between items-baseline border-b border-slate-100 dark:border-slate-800 pb-2.5">
                       <span className="text-xs text-slate-500 font-medium">Correct solutions</span>
                       <span className="text-base font-extrabold text-emerald-500">{correct}</span>
                     </div>
-                    <div className="flex justify-between items-baseline border-b border-slate-100 py-2.5">
+                    <div className="flex justify-between items-baseline border-b border-slate-100 dark:border-slate-800 py-2.5">
                       <span className="text-xs text-slate-500 font-medium">Wrong attempts</span>
                       <span className="text-base font-extrabold text-rose-500">{wrong}</span>
                     </div>
@@ -1111,12 +1147,12 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
               </div>
 
               {/* LIST DIRECTORIES INTEGRATION INSIDE DASHBOARD (ACTIVE RECALL LISTS) */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-md flex flex-col gap-4">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                  <h3 className="font-extrabold text-slate-800 text-sm tracking-wider uppercase flex items-center gap-1.5">
+              <div className={`${thPanel} p-6 rounded-2xl flex flex-col gap-4`}>
+                <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className={`font-extrabold text-sm tracking-wider uppercase flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                     <ListFilter className="w-4 h-4 text-sky-400" /> Syllabus Question Hub
                   </h3>
-                  <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded leading-none">
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded leading-none ${isDark ? 'bg-slate-950 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
                     Select list item to jump to quiz
                   </span>
                 </div>
@@ -1127,9 +1163,9 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                     if(!qDetails) return null;
 
                     const statusLabelsProps = {
-                      green: { text: "Optimal", textClass: "text-emerald-500 bg-emerald-50 border-emerald-100", dot: "bg-emerald-400" },
-                      red: { text: "Error Out", textClass: "text-rose-500 bg-rose-50 border-rose-100", dot: "bg-rose-400" },
-                      gray: { text: "Unsolved", textClass: "text-slate-400 bg-slate-50 border-slate-200/60", dot: "bg-slate-300" },
+                      green: { text: "Optimal", textClass: "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/40", dot: "bg-emerald-400" },
+                      red: { text: "Error Out", textClass: "text-rose-500 bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40", dot: "bg-rose-400" },
+                      gray: { text: "Unsolved", textClass: "text-slate-400 bg-slate-50 dark:bg-slate-950/20 border-slate-200/60 dark:border-slate-850", dot: "bg-slate-300" },
                     };
 
                     const sl = statusLabelsProps[item.status] || statusLabelsProps.gray;
@@ -1141,13 +1177,13 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
                           setCurrentIndex(idx);
                           setActiveTab('practice');
                         }}
-                        className="p-3 border border-slate-100 hover:border-sky-300 rounded-xl flex items-center justify-between gap-4 cursor-pointer transition-all hover:bg-slate-50/50"
+                        className={`p-3 border rounded-xl flex items-center justify-between gap-4 cursor-pointer transition-all ${isDark ? 'border-slate-850 hover:border-sky-500 hover:bg-slate-900/50' : 'border-slate-100 hover:border-sky-300 hover:bg-slate-50/50'}`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-6 h-6 rounded-lg bg-sky-50 text-sky-600 font-extrabold text-xs flex items-center justify-center shrink-0">
+                          <span className={`w-6 h-6 rounded-lg font-extrabold text-xs flex items-center justify-center shrink-0 ${isDark ? 'bg-sky-950/40 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
                             {idx + 1}
                           </span>
-                          <p className="text-xs font-medium text-slate-700 truncate min-w-0">
+                          <p className={`text-xs font-medium truncate min-w-0 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             {qDetails.text}
                           </p>
                         </div>
@@ -1170,38 +1206,43 @@ export default function PracticeSession({ planId, plans, onSwitch, onBack }: Pra
 
       {/* DESKTOP EXCLUSIVE RIGHT RAIL DIRECTORY SHEET */}
       <div className={`
-        fixed inset-y-0 right-0 w-[280px] bg-white border-l border-slate-200 p-6 flex flex-col z-50 overflow-y-auto transition-transform duration-300 lg:relative lg:translate-x-0 shrink-0
+        fixed inset-y-0 right-0 w-[280px] p-6 flex flex-col z-50 overflow-y-auto transition-transform duration-300 lg:relative lg:translate-x-0 shrink-0
+        ${isDark ? 'bg-slate-900 border-l border-slate-850 text-white' : 'bg-white border-l border-slate-200 text-slate-800'}
         ${directoryOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-extrabold text-sm text-slate-800 tracking-wider uppercase">Exam Navigation</h3>
-          <button onClick={() => setDirectoryOpen(false)} className="lg:hidden p-1 rounded-lg hover:bg-slate-100">
-            <X className="w-5 h-5 text-slate-500" />
+          <h3 className="font-extrabold text-sm tracking-wider uppercase">Exam Navigation</h3>
+          <button onClick={() => setDirectoryOpen(false)} className={`lg:hidden p-1 rounded-lg ${isDark ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-4">
           {Array.from({ length: Math.ceil(progress.length / 50) }).map((_, batchIdx) => (
-            <details key={batchIdx} className="group border border-slate-200/50 rounded-xl overflow-hidden" open={batchIdx === 0}>
-              <summary className="cursor-pointer font-bold text-xs text-slate-500 p-3 hover:bg-slate-50/80 transition-colors flex justify-between items-center border-b border-slate-100 select-none">
+            <details key={batchIdx} className={`group border rounded-xl overflow-hidden ${isDark ? 'border-slate-800' : 'border-slate-200/50'}`} open={batchIdx === 0}>
+              <summary className={`cursor-pointer font-bold text-xs p-3 transition-colors flex justify-between items-center border-b select-none ${isDark ? 'text-slate-400 border-slate-800 hover:bg-slate-950/80' : 'text-slate-500 border-slate-100 hover:bg-slate-50/80'}`}>
                 <span>Quiz Q {batchIdx * 50 + 1} – {Math.min((batchIdx + 1) * 50, progress.length)}</span>
-                <span className="w-4 h-4 rounded bg-slate-100 text-[10px] text-center font-bold items-center justify-center hidden lg:flex shrink-0">
+                <span className={`w-4 h-4 rounded text-[10px] text-center font-bold items-center justify-center hidden lg:flex shrink-0 ${isDark ? 'bg-slate-950 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
                   {progress.slice(batchIdx * 50, (batchIdx + 1) * 50).length}
                 </span>
               </summary>
-              <div className="p-3 bg-slate-50/20 flex flex-wrap gap-1.5">
+              <div className={`p-3 flex flex-wrap gap-1.5 ${isDark ? 'bg-slate-950/30' : 'bg-slate-50/20'}`}>
                 {progress.slice(batchIdx * 50, (batchIdx + 1) * 50).map((item, idx) => {
                   const globalIdx = batchIdx * 50 + idx;
                   const isActive = currentIndex === globalIdx;
 
-                  const colors = {
+                  const colors = isDark ? {
+                    green: { border: 'border-emerald-900/60', bg: 'bg-emerald-950/30 hover:bg-emerald-900/45', text: 'text-emerald-400' },
+                    red: { border: 'border-rose-900/60', bg: 'bg-rose-950/30 hover:bg-rose-900/45', text: 'text-rose-400' },
+                    gray: { border: 'border-slate-800', bg: 'bg-slate-950 hover:bg-slate-850', text: 'text-slate-400' },
+                  } : {
                     green: { border: 'border-emerald-200', bg: 'bg-emerald-50 hover:bg-emerald-100/50', text: 'text-emerald-700' },
                     red: { border: 'border-rose-200', bg: 'bg-rose-50 hover:bg-rose-100/50', text: 'text-rose-700' },
                     gray: { border: 'border-slate-200', bg: 'bg-white hover:bg-slate-50', text: 'text-slate-700' },
                   };
 
                   const sc = isActive 
-                    ? { border: 'border-slate-800', bg: 'bg-slate-800', text: 'text-white' }
+                    ? (isDark ? { border: 'border-slate-850', bg: 'bg-sky-600', text: 'text-white' } : { border: 'border-slate-800', bg: 'bg-slate-800', text: 'text-white' })
                     : colors[item.status] || colors.gray;
 
                   return (
